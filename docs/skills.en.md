@@ -251,7 +251,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 2. Takes the project from the `Linear project: <name>` line in the project `CLAUDE.md`. If missing, asks and writes that line (asks)
 3. Searches existing issues first, archived included, and creates only if none exists. Defaults: priority Medium, assignee me, an existing label. Large tasks get a parent plus one sub-issue per deliverable
 4. Before work, reads the comments and every `+++ Agent notes` block in them
-5. Moves status and comments with fixed templates: plan → `Plan` + Plan comment; work → `In Progress`; blocked → BLOCKED comment, then stops; done → Done comment + `Done` (`Feedback` if you must review)
+5. Moves status and comments with fixed templates: plan → `Plan` + Plan comment; work → `In Progress`; blocked → BLOCKED comment, then stops; done → commit, then Done comment + `Done` (`Feedback` if you must review). Done and BLOCKED comments list every commit of the task as short hashes
 6. Puts the issue ID in every commit and PR (commit title `✨ [MOLE-123] …`). Branch is `<user>/<issue-id>` in lowercase (e.g. `jin/mole-123`)
 
 **Output**: Linear issues, comments, and statuses; the `Linear project:` line in the project `CLAUDE.md`; user-scope MCP `linear-server` when installed; on cleanup, deletes `~/.claude/linear.md`, `~/.claude/mcp-linear.md`, `<project>/linear.md` and removes `@linear.md` / `@mcp-linear.md` lines from `CLAUDE.md` / `AGENTS.md`

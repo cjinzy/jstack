@@ -21,8 +21,8 @@ Statuses: `Triage` · `Backlog` · `Todo` · `Plan` · `In Progress` · `Feedbac
    * plan → `Plan` + Plan comment. Never edit the description
    * work → `In Progress`
    * blocked → BLOCKED comment, then stop. Don't guess
-   * done → Done comment, `Done` + due date (`Feedback` if the user must review). Parent is Done only when all sub-issues are
-7. Git is required: issue ID in every commit and PR. Commit title: `<emoji> [MOLE-123] <title>` (the `commit` skill adds it). Branch: `<user>/<issue-id>` in lowercase (e.g. `jin/mole-123`), `<user>` = the part of the issue's `gitBranchName` before `/`. No title slug.
+   * done → commit first, then Done comment, `Done` + due date (`Feedback` if the user must review). Parent is Done only when all sub-issues are
+7. Git is required: issue ID in every commit and PR. Commit title: `<emoji> [MOLE-123] <title>` (the `commit` skill adds it). Branch: `<user>/<issue-id>` in lowercase (e.g. `jin/mole-123`), `<user>` = the part of the issue's `gitBranchName` before `/`. No title slug. Done / BLOCKED comments list every commit of the task as short hashes (`git log --format=%h`); none → omit the line.
 8. Never create labels/statuses, never delete issues.
 
 ## Writing
@@ -58,10 +58,11 @@ Plan:
 
 Done: <what changed vs To-be, 1–3 lines>
 검증: <command run and result>
-Commit: a1b2c3d · PR: <link>
+Commit: a1b2c3d e4f5a6b · PR: <link>
 
 BLOCKED: <cause>
 필요: <what is needed, from whom>
+Commit: a1b2c3d
 ```
 
 Done / BLOCKED end with a handoff block. Omit empty lines; skip it if nothing is worth handing off.
