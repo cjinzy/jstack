@@ -126,3 +126,50 @@ def test_plain_text_output_is_ok_and_gated_from_stdout():
     r = invoke(["--gate", "--", sys.executable, "-c", "print('[P2] nit')"])
     assert "STATUS: ok" in r.stdout
     assert "GATE: PASS" in r.stdout
+
+
+def test_missing_log_dir_fails_before_running(tmp_path):
+    # --log 상위 디렉터리가 없으면 codex 를 돌리지 않고 원인을 알린다 (유료 호출 낭비 방지)
+    marker = tmp_path / "ran"
+    stub = f"open({str(marker)!r}, 'w')"
+    r = invoke(["--log", str(tmp_path / "nope" / "t.log"), "--", sys.executable, "-c", stub])
+    assert r.returncode != 0
+    assert not marker.exists()
+    assert "STATUS: failed" in r.stdout
+    assert "명령을 찾을 수 없음" not in r.stdout
+    assert str(tmp_path / "nope") in r.stdout
+
+
+REASONING_ONLY = jsonl(
+    {"type": "item.completed", "item": {"type": "reasoning", "text": "[P1] maybe"}},
+    {"type": "turn.completed", "usage": {}},
+)
+
+
+def test_reasoning_only_is_empty():
+    # agent_message 가 없으면 생각만 하고 답은 못 낸 것 → ok 아님
+    assert status_of(0, parse_events(REASONING_ONLY)) == "empty"
+    r = invoke(["--gate", "--", sys.executable, "-c", f"print({REASONING_ONLY!r})"])
+    assert "STATUS: empty" in r.stdout
+    assert "GATE: FAIL (fail-closed: empty)" in r.stdout
+
+
+def test_gate_ignores_reasoning_tags():
+    # -o 없는 JSON 출력: 게이트는 agent_message 만 본다 ([codex thinking] 속 [P1] 제외)
+    events = jsonl(
+        {"type": "item.completed", "item": {"type": "reasoning", "text": "[P1] maybe"}},
+        {"type": "item.completed", "item": {"type": "agent_message", "text": "[P3] nit"}},
+        {"type": "turn.completed", "usage": {}},
+    )
+    r = invoke(["--gate", "--", sys.executable, "-c", f"print({events!r})"])
+    assert "STATUS: ok" in r.stdout
+    assert "GATE: PASS" in r.stdout
+
+
+def test_output_file_counts_as_answer(tmp_path):
+    # agent_message 이벤트가 없어도 -o 파일에 최종 답이 있으면 답이 있는 것 (exec review 대비)
+    last = tmp_path / "last.md"
+    stub = f"open({str(last)!r}, 'w').write('[P2] nit'); print({REASONING_ONLY!r})"
+    r = invoke(["--gate", "--", sys.executable, "-c", stub, "-o", str(last)])
+    assert "STATUS: ok" in r.stdout
+    assert "GATE: PASS" in r.stdout

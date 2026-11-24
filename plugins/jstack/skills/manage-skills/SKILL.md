@@ -16,9 +16,10 @@ argument-hint: "[verify 스킬 이름 또는 집중할 영역]"
 ## Step 1: 변경 파일 수집
 
 ```bash
-BASE=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || echo main)
+BASE=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null) \
+  || BASE=$(git rev-parse -q --verify main >/dev/null && echo main || echo master)
 git diff HEAD --name-only            # 미커밋
-git diff "$BASE"...HEAD --name-only  # 분기 이후 커밋
+git diff "$BASE"...HEAD --name-only 2>/dev/null  # 분기 이후 커밋 (기준 브랜치 없으면 생략)
 git ls-files --others --exclude-standard  # 새 파일
 ```
 

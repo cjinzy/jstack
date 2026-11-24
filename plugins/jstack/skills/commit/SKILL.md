@@ -14,6 +14,8 @@ argument-hint: "[message]"
 <본문 (선택): what/why>
 ```
 
+- 대괄호: 이슈 ID 는 대괄호 포함(`[MOLE-123]`). `[— 스코프]`·`[+ 추가사항]` 의 대괄호는 선택 표기일 뿐 쓰지 않는다.
+
 - 제목: 이모지로 시작, 명사형 동작어구("버그 수정", "기능 추가"), 한 줄·간결하게, 마침표 없음.
 - 영문 규칙 중 "50자 제한·첫 글자 대문자·명령형"은 한국어 제목에 적용하지 않는다. 제목 속 영문 고유명사·코드명은 원래 표기 유지.
 - 이슈 ID: 브랜치 이름에 `<팀키>-<번호>` 가 있거나(`jin/mole-123` → `MOLE-123`) 대화에서 다루는 이슈가 있을 때만 이모지 뒤에 `[MOLE-123]`. 모르면 생략하고 추측하지 않는다.
@@ -28,7 +30,7 @@ argument-hint: "[message]"
 🐛 Token overflow 시 tool_result 미수신 버그 수정
 ♻️ 사이드바 탭 메뉴 전환 + 수평 아코디언 + ESC 닫기
 ✨ 대화 기록 영속화 — Full Stack (Migration + Backend + Frontend)
-🔧 docker-compose 설정 수정: 포트 노출 방식 변경
+🔧 docker-compose 설정 수정 — 포트 노출 방식 변경
 🗃️ 세션 테이블 마이그레이션 추가 및 Repository 패턴 적용
 ```
 
@@ -38,7 +40,7 @@ argument-hint: "[message]"
 
 | Emoji | Code | 선택 기준 |
 |-------|------|-----------|
-| ✨ | `:sparkles:` | 새 기능·새 파일 |
+| ✨ | `:sparkles:` | 새 기능 |
 | 🐛 | `:bug:` | 버그 수정 |
 | 🚑 | `:ambulance:` | 긴급 핫픽스 |
 | 🩹 | `:adhesive_bandage:` | 사소한 수정 (위치·문구 조정 등) |

@@ -5,6 +5,7 @@ repo를 https 로 clone/pull 한 후, 개별 파일을 ~/.claude/ 하위에 복�
 <stem>_backup_<YYYYMMDD><ext> 로 백업하고 변경을 report_changes 에 기록한다.
 """
 
+import re
 import shutil
 import subprocess
 import sys
@@ -254,6 +255,18 @@ def ensure_venv(repo_dir: Path, venv_dir: Path | None = None) -> bool:
     return _install_with_pip(repo_dir, venv_dir)
 
 
+def cached_versions(base: Path) -> list[Path]:
+    """캐시의 버전 디렉터리를 오래된 → 최신 순으로. preflight.check_hooks 도 사용.
+
+    문자열 정렬은 6.3.10 < 6.3.9 → 숫자 튜플로 비교한다.
+    ponytail: 숫자만 뽑으므로 6.3.3-rc1 > 6.3.3. pre-release 를 배포하면 semver 비교로.
+    """
+    return sorted(
+        (d for d in base.iterdir() if d.is_dir() and d.name[0].isdigit()),
+        key=lambda d: tuple(int(n) for n in re.findall(r"\d+", d.name)),
+    )
+
+
 def clean_stale_cache(cache_dir: Path | None = None) -> int:
     """플러그인 캐시에서 구버전을 제거하고 최신 버전만 유지한다.
 
@@ -266,10 +279,7 @@ def clean_stale_cache(cache_dir: Path | None = None) -> int:
     base = cache_dir or CACHE_BASE
     if not base.exists():
         return 0
-    versions = sorted(
-        [d for d in base.iterdir() if d.is_dir() and d.name[0].isdigit()],
-        key=lambda d: d.name,
-    )
+    versions = cached_versions(base)
     if len(versions) <= 1:
         return 0
     stale = versions[:-1]

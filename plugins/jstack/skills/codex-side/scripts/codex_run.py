@@ -52,7 +52,7 @@ def parse_events(stdout: str) -> dict:
     session_id = ""
     completed = 0
     failed = ""
-    messages = 0
+    answers: list[str] = []  # agent_message 만 — 게이트 판정 대상
     json_seen = False
     for raw in stdout.splitlines():
         raw = raw.strip()
@@ -77,7 +77,7 @@ def parse_events(stdout: str) -> dict:
                 lines.append(f"[codex thinking] {text}")
             elif itype == "agent_message" and text:
                 lines.append(text)
-                messages += 1
+                answers.append(text)
             elif itype == "command_execution" and item.get("command"):
                 lines.append(f"[codex ran] {item['command']}")
         elif kind == "turn.completed":
@@ -92,13 +92,17 @@ def parse_events(stdout: str) -> dict:
         "session_id": session_id,
         "completed": completed,
         "failed": failed,
-        "messages": messages,
+        "messages": len(answers),
+        "answer": "\n".join(answers),
         "json_seen": json_seen,
     }
 
 
-def status_of(exit_code: int, events: dict) -> str:
-    """실행 결과를 단일 상태어로. 실패는 닫힌 쪽(fail-closed)으로 판정한다."""
+def status_of(exit_code: int, events: dict, last_message: str = "") -> str:
+    """실행 결과를 단일 상태어로. 실패는 닫힌 쪽(fail-closed)으로 판정한다.
+
+    답 = agent_message 또는 -o 파일 내용 (last_message). reasoning 은 답이 아니다.
+    """
     if exit_code == EXIT_TIMEOUT:
         return "timeout"
     if exit_code != 0:
@@ -109,7 +113,7 @@ def status_of(exit_code: int, events: dict) -> str:
         return "ok" if events["transcript"].strip() else "empty"
     if events["completed"] == 0:
         return "no_completion"
-    if events["messages"] == 0 and not events["transcript"].strip():
+    if events["messages"] == 0 and not last_message.strip():
         return "empty"
     return "ok"
 
@@ -174,13 +178,19 @@ def main(argv: list[str]) -> int:
         print("STATUS: nested (Codex 세션 안에서 실행 중 — 외부 Codex 호출 안 함)")
         return EXIT_NESTED
 
+    if args.log and not args.log.parent.is_dir():  # codex 실행(유료) 전에 확인
+        print(f"STATUS: failed\nERROR: --log 디렉터리 없음 — {args.log.parent}")
+        return EXIT_USAGE
+
     stdin = b"" if sys.stdin.isatty() else sys.stdin.buffer.read()
     if args.boundary:
         stdin = BOUNDARY.encode() + stdin
 
     code, out, err = run(cmd, stdin, args.timeout)
     events = parse_events(out)
-    status = status_of(code, events)
+    last = output_file(cmd)
+    last_message = last.read_text(errors="replace") if last and last.exists() else None
+    status = status_of(code, events, last_message or "")
 
     if args.log:
         args.log.write_text(events["transcript"] + "\n")
@@ -197,10 +207,11 @@ def main(argv: list[str]) -> int:
     if status == "timeout":
         print(f"HINT: {args.timeout:.0f}s 초과로 중단. 범위를 줄이거나 effort 를 낮춰 재시도.")
     if args.gate:
-        last = output_file(cmd)
-        if last and last.exists():
-            text = last.read_text(errors="replace")
-        else:  # -o 가 없는 명령은 transcript 로 판정
+        if last_message is not None:
+            text = last_message
+        elif events["json_seen"]:  # -o 없음: 답만 판정 ([codex thinking]·[codex ran] 제외)
+            text = events["answer"]
+        else:  # 평문 출력 (최상위 `codex review`)
             text = events["transcript"]
         print(f"GATE: {review_gate(status, text)}")
     if code != 0 and err.strip():

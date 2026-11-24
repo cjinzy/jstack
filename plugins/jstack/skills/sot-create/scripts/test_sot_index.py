@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-from sot_index import collect, render
+from sot_index import collect, main, render
 
 ARC = """---
 id: ARC-components
@@ -70,6 +71,30 @@ def test_incomplete_frontmatter_is_skipped_not_guessed(tmp_path):
     rows, skipped = collect(root)
     assert skipped == ["overview/draft.md"]
     assert len(rows) == 2
+
+
+def run_main(monkeypatch, *args: str) -> int:
+    monkeypatch.setattr(sys, "argv", ["sot_index.py", *args])
+    return main()
+
+
+def test_hand_written_index_is_backed_up(tmp_path, monkeypatch, capsys):
+    """`sot/` is gitignored: an overwritten hand-written Index.md is unrecoverable."""
+    root = build(tmp_path / "sot")
+    hand = "# SoT Index\n\n- my notes\n"
+    (root / "Index.md").write_text(hand, encoding="utf-8")
+    assert run_main(monkeypatch, "--root", str(root), "--check") == 1
+    assert not (root / "Index.md.bak").exists()  # --check never writes
+    assert run_main(monkeypatch, "--root", str(root)) == 0
+    assert (root / "Index.md.bak").read_text(encoding="utf-8") == hand
+    assert "Index.md.bak" in capsys.readouterr().err
+
+
+def test_generated_index_is_overwritten_without_backup(tmp_path, monkeypatch):
+    root = build(tmp_path / "sot")
+    run_main(monkeypatch, "--root", str(root))
+    run_main(monkeypatch, "--root", str(root))
+    assert not (root / "Index.md.bak").exists()
 
 
 if __name__ == "__main__":

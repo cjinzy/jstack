@@ -23,7 +23,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/codex_run.py" --gate --log "$D/transcript.l
 echo "D=$D"
 ```
 
-`exec review` 가 이 호출을 거부하면 최상위 `codex review --base "<BASE>" -c 'sandbox_mode="read-only"' < /dev/null` 로 대체한다 (`--json -o` 없음 → 평문 출력, 스크립트가 transcript 로 게이트 판정, 결과는 `$D/transcript.log`).
+`exec review` 가 이 호출을 거부하면 최상위 `codex review --base "<BASE>" -c 'sandbox_mode="read-only"' < /dev/null` 로 대체한다 (`--json -o` 없음 → 평문 출력, 스크립트가 transcript 로 게이트 판정, 결과는 `$D/transcript.log`). 모델을 지정했으면 `-m` 대신 `-c 'model="<model>"'` (최상위 `codex review` 엔 `-m` 없음).
 
 ## B. focus 있음 (`review <focus>`)
 
@@ -47,7 +47,7 @@ echo "D=$D"
 
 ## 게이트
 
-스크립트의 `GATE:` 줄을 그대로 쓴다. 판정은 닫힌 쪽(fail-closed):
+스크립트의 `GATE:` 줄을 그대로 쓴다. JSON 출력이면 판정 대상은 Codex 답(`-o` 파일, 없으면 agent_message)뿐 — `[codex thinking]`·`[codex ran]` 줄은 세지 않는다. 판정은 닫힌 쪽(fail-closed):
 
 1. 실행 실패·타임아웃·빈 출력 → `FAIL (fail-closed: …)` — "리뷰가 완료되지 않았다"고 분명히 말한다
 2. `[P0]`/`[P1]` (또는 `P0:`/`P1:`) 존재 → `FAIL (N critical findings)`

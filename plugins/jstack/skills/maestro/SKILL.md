@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: 이 세션을 오케스트레이터로 전환한다 — 계획·분배·보고 수신만 하고 실제 작업은 하위 세션(named subagent 또는 herdr pane 의 독립 Claude 세션)에 위임, 후속 태스크는 같은 세션에 이어 맡기고 끝난 세션은 보관한다. 하위 세션의 질문은 사용자에게 확인받는다. `/jstack:maestro` 로만 실행.
+description: 이 세션을 오케스트레이터로 전환한다 — 계획·분배·보고 수신만 하고 실제 작업은 하위 세션(named subagent 또는 herdr pane 의 독립 Claude 세션)에 위임, 후속 태스크는 같은 세션에 이어 맡기고 끝난 세션은 보관한다. 하위 세션의 질문은 사용자에게 확인받는다. 여러 갈래 작업을 하위 세션에 나눠 맡길 때 `/jstack:maestro` 로만 실행.
 disable-model-invocation: true
 ---
 
@@ -15,10 +15,10 @@ disable-model-invocation: true
 
 ## 규칙
 1. 직접 하는 일: 계획, 원장 갱신, 보고 종합, 사용자 질문. 코드 수정·빌드·테스트·조사 금지 (`.maestro/`·info/exclude 외 Edit/Write 금지).
-2. **하위 세션의 질문·결정 요청·승인 요청은 오케스트레이터가 답하지 않는다.** `BLOCKED` 보고, 보고 안의 질문, pane 의 `blocked` 상태 → 질문을 그대로(선택지·근거 포함) AskUserQuestion 으로 사용자에게 묻고, 받은 답을 그 세션에 전달한다. 추천은 붙여도 되지만 결정은 사용자.
+2. **하위 세션의 질문·결정 요청·승인 요청은 오케스트레이터가 답하지 않는다.** `BLOCKED` 보고, 보고 안의 질문, pane 의 `blocked` 상태 → 질문을 그대로(선택지·근거 포함) AskUserQuestion 으로 사용자에게 묻고, 받은 답을 그 세션에 전달한다. 추천은 붙여도 되지만 결정은 사용자. pane 이 `blocked` 면 `agent prompt` 가 거부되므로 사용자가 고른 답에 해당하는 키(선택지 번호·`enter`·`esc` 등)만 `herdr agent send-keys <name> <키…>` 로 보낸다. 자유 텍스트 답은 사용자가 pane 에서 직접 입력.
 3. 분배 경로:
-   - 같은 영역/파일/기능의 active·idle 세션 있음 → 그 세션에 이어 맡긴다 (agent: `SendMessage(to: <name>)`, pane: `herdr agent prompt <name> …`). 이력 유지.
-   - 맥락이 쌓일 새 일 → 새 하위 세션 `m-<영역>-<번호>` (agent 는 general-purpose. Explore·Plan 은 재개 불가라 후속 대상엔 쓰지 않음).
+   - 같은 영역/파일/기능의 active·idle 세션 있음 → 그 세션에 이어 맡긴다 (agent: `SendMessage(to: <name>)`, pane: pane runner 4). 이력 유지.
+   - 맥락이 쌓일 새 일 → 새 하위 세션 `m-<영역>-<번호>` (소문자 ASCII, 32자 이하 — herdr 이름 규칙. agent 는 general-purpose. Explore·Plan 은 재개 불가라 후속 대상엔 쓰지 않음).
    - 후속 없는 넓은 1회성 일(전수 audit·일괄 변경) → 오케스트레이터가 Workflow 직접 실행 (위임 수단이라 규칙 1 과 양립). 결과만 원장에.
 4. runner 는 새 세션마다 고른다.
    - `pane`: herdr 안에서 실행 중(`$HERDR_PANE_ID` 있음)이고, ultracode 이거나 오래 걸리거나 사용자가 지켜보며 조정할 일. 완전한 세션이라 Workflow 를 쓸 수 있다.
@@ -37,9 +37,15 @@ disable-model-invocation: true
 1. `herdr pane layout --pane "$HERDR_PANE_ID"` → 넓으면 `right`, 좁거나 길면 `down`.
 2. `herdr pane split --current --direction <dir> --cwd "<cwd 또는 worktree>" --no-focus` → `.result.pane.pane_id`.
 3. `herdr agent start <name> --kind claude --pane <pane_id>` (`agent_not_ready` 면 `herdr agent read` 로 원인 확인, 승인 화면이면 규칙 2).
-4. `herdr agent prompt <name> "<브리프>"` 로 맡기고, `herdr agent wait <name> --timeout <ms>` 를 Bash `run_in_background` 로 걸어 끝을 통보받는다.
-5. 통보 후 `herdr agent get <name>`: `blocked` → `herdr agent read <name> --source recent-unwrapped --lines 80` 로 질문을 읽고 규칙 2. `idle`/`done` → 보고 파일을 읽는다. 없으면 `agent read` 로 확인하고 보고 파일 작성을 요청.
-- 승인 화면에 `send-keys` 로 대신 답하지 않는다 (규칙 2). 사용자가 pane 에서 직접 답해도 된다.
+4. 브리프는 따옴표 붙은 heredoc 으로 넘긴다 (백틱·`$` 치환 방지). 단독 `agent wait` 는 제출 직후 idle 에 매칭될 수 있어 `prompt --wait` 한 번으로, Bash `run_in_background`:
+   ```bash
+   herdr agent prompt <name> "$(cat <<'BRIEF_END'
+   <브리프>
+   BRIEF_END
+   )" --wait --timeout <ms>
+   ```
+5. 통보 후 `herdr agent get <name>`: `blocked` → `herdr agent read <name> --source recent-unwrapped --lines 80` 로 질문을 읽고 규칙 2. `idle`/`done` → 보고 파일을 읽는다. 없으면 `agent read` 로 확인하고 보고 파일 작성을 요청. `working`·timeout → `herdr agent wait <name> --timeout <ms>` 로 다시 대기 (프롬프트 재전송 금지). `unknown` → `agent read` 로 확인.
+- `send-keys` 는 사용자가 고른 답만 (규칙 2). 오케스트레이터가 임의로 답하지 않는다.
 
 ## 브리프 템플릿
 ```

@@ -101,7 +101,7 @@ def ensure_timer() -> None:
     if marker is None or not installer.is_file() or (home / marker).exists():
         return
     # 분리 실행: 설치 스크립트의 초기 fetch 가 hook timeout(10s)을 넘길 수 있음.
-    # ponytail: 실패해도 marker 가 없으니 다음 세션이 재시도. 동시 세션 경합은 무시.
+    # ponytail: 등록 실패 시 install-timer.sh 가 marker 를 지우니 다음 세션이 재시도. 동시 세션 경합은 무시.
     try:
         subprocess.Popen(
             ["bash", str(installer), str(saved_interval(home))],

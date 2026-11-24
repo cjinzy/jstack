@@ -180,6 +180,17 @@ else
   fail "Line 1 missing effort between model and version: $effort_line1"
 fi
 
+# Test 17: config 에 없는 키는 기본값(표시) — SHOW_USAGE=0 만 써도 디렉터리는 보인다
+TEST_HOME=$(mktemp -d)
+mkdir -p "$TEST_HOME/.claude" && echo "SHOW_USAGE=0" > "$TEST_HOME/.claude/statusline-config.txt"
+partial_cfg=$(echo '{"current_dir":"/tmp/sl-dir-probe","model":{"display_name":"Opus"},"version":"1.0"}' | HOME="$TEST_HOME" bash "$SCRIPT" 2>/dev/null)
+rm -rf "$TEST_HOME"
+if echo "$partial_cfg" | grep -q "sl-dir-probe"; then
+  pass "Missing config key defaults to shown"
+else
+  fail "Directory hidden when SHOW_DIRECTORY absent from config: $partial_cfg"
+fi
+
 echo ""
 echo "Results: $passed passed, $failed failed"
 [ "$failed" -eq 0 ] && exit 0 || exit 1

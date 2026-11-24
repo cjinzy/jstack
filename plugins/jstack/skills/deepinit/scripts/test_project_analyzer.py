@@ -63,8 +63,8 @@ class TestDetectLanguages:
 
         assert languages == []
 
-    def test_ignores_hidden_directories(self, tmp_path: Path) -> None:
-        """숨김 디렉토리(.git 등)의 파일은 무시한다."""
+    def test_ignores_ignore_dirs(self, tmp_path: Path) -> None:
+        """`IGNORE_DIRS` 에 이름이 있는 디렉토리(.git·.venv)의 파일은 무시한다."""
         (tmp_path / "main.py").write_text("")
         git_dir = tmp_path / ".git"
         git_dir.mkdir()
@@ -72,6 +72,15 @@ class TestDetectLanguages:
         venv_dir = tmp_path / ".venv"
         venv_dir.mkdir()
         (venv_dir / "lib.py").write_text("")
+
+        languages = detect_languages(tmp_path)
+
+        assert languages == ["Python"]
+
+    def test_counts_other_hidden_directories(self, tmp_path: Path) -> None:
+        """`IGNORE_DIRS` 밖의 숨김 디렉토리(.claude 등)는 집계한다 (SKILL.md 주의사항)."""
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "x.py").write_text("")
 
         languages = detect_languages(tmp_path)
 

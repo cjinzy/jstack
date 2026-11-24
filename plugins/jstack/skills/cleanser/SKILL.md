@@ -15,9 +15,9 @@ AI 생성 코드의 슬롭을 찾아 리포트만 한다. **삭제/수정은 하
 | Category | Severity | 탐지 |
 |----------|----------|------|
 | leftover-debug | critical | 스크립트: `print(`, `pdb`, `breakpoint(` (Python) / `console.log(`, `debugger` (JS/TS) |
-| dead-code | warning | 스크립트: `# def/class/if/for/while/return/import` 로 시작하는 주석 (Python). 그 외 언어·미사용 함수는 시맨틱 |
+| dead-code | warning | 스크립트: 코드 형태 주석만 — `# def/class/if/for/while …:` (`:` 로 끝남), `# return [식 하나]`, `# import <모듈>` (Python). 그 외 언어·미사용 함수는 시맨틱 |
 | unused-import | warning | 스크립트: ruff F401 (Python, ruff 설치 시) |
-| unnecessary-comment | warning | 스크립트: `#` TODO/FIXME/HACK/XXX/TEMP/TEMPORARY 주석 (확장자 무관), JS/TS 는 `//` 도. 자명한 주석(`# 리스트를 반복한다`)은 시맨틱 |
+| unnecessary-comment | warning | 스크립트: `#` TODO/FIXME/HACK/XXX/TEMP/TEMPORARY 주석 (대문자만, 확장자 무관), JS/TS 는 `//` 도. 자명한 주석(`# 리스트를 반복한다`)은 시맨틱 |
 | excessive-error-handling | warning | 시맨틱: 발생 불가능한 예외 처리, 빈 except |
 | boilerplate-docstring | info | 시맨틱: `"""This function does X."""` 류 |
 | over-abstraction | info | 시맨틱: 한 곳에서만 쓰는 단순 래퍼 |
@@ -43,8 +43,9 @@ AI 생성 코드의 슬롭을 찾아 리포트만 한다. **삭제/수정은 하
 python3 "${CLAUDE_SKILL_DIR}/scripts/slop_patterns.py" <파일|디렉토리> [...]
 ```
 
-- 출력(stdout): 마크다운 리포트 — `### 요약`(심각도별 건수) + `### 이슈 목록` 테이블. 이슈가 없으면 둘 다 없이 `슬롭 이슈가 발견되지 않았습니다…` 한 줄. ruff 가 없으면 끝에 `> ruff 미설치 — unused-import(F401) 검사 생략.` 한 줄.
+- 출력(stdout): 마크다운 리포트 — `### 요약`(심각도별 건수) + `### 이슈 목록` 테이블. 이슈가 없으면 둘 다 없이 헤더(`## AI Slop 분석 리포트`) + `슬롭 이슈가 발견되지 않았습니다…` 한 줄. 끝에 검사 누락 안내 (해당 시 각 한 줄): `> ruff 미설치 — …`, `> F401 검사 실패 (ruff rc=N) — <stderr 발췌>` (이때는 깨끗하다고 하지 않음), `> 건너뜀: <파일> — UTF-8 아님`.
 - 디렉토리는 `.py .js .jsx .ts .tsx .mjs .cjs` 를 재귀 스캔 (`.git`, `node_modules`, `.venv`, `venv`, `__pycache__`, `dist`, `build` 제외). 파일 인자는 확장자와 무관하게 스캔하되 Python 패턴은 `.py`, JS/TS 패턴은 위 JS/TS 확장자에만 적용 (그 외 파일은 TODO 류만).
+- diff 모드(Step 1 의 2·3)는 위 7개 확장자 파일만 스크립트에 넘긴다 — 그 외(`.md` 의 `# TODO` 제목 오탐, Go 등 `// TODO` 미검출)는 시맨틱 리뷰만. 남는 파일이 없으면 스크립트를 생략한다.
 - 종료 코드: `0` 정상, `2` 인자 없음, `3` 없는 경로 (stderr 에 경로 출력, 스캔 안 함).
 - 라인 정규식이라 오탐 가능 (예: CLI 의 의도된 `print`). 리포트 전에 해당 라인을 확인해 걸러낸다.
 

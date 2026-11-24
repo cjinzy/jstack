@@ -3,6 +3,8 @@
 정적 슬롭 패턴 감지, ruff 출력 파싱, 리포트 생성을 검증한다.
 """
 
+import subprocess
+
 import pytest
 
 from slop_patterns import (
@@ -198,6 +200,36 @@ class TestDetectStaticPatterns:
 
         assert detect_static_patterns(test_file) == []
 
+    def test_소문자_TODO_류_산문은_무시(self, tmp_path) -> None:
+        """TODO 류는 대문자만 — `# temp dir` 같은 산문은 오탐하지 않는다."""
+        test_file = tmp_path / "app.ts"
+        test_file.write_text(
+            "# temp dir\n// temp dir\n// todo later\n// TEMP: 제거\n", encoding="utf-8"
+        )
+
+        assert [i.line for i in detect_static_patterns(test_file)] == [4]
+
+    def test_dead_code_는_코드_형태만(self, tmp_path) -> None:
+        """`# if the user …` 같은 산문은 무시하고 코드 형태 주석만 dead-code 로 본다."""
+        test_file = tmp_path / "app.py"
+        test_file.write_text(
+            "# if the user is logged in, show the menu\n"
+            "# for each item we compute a total\n"
+            "# return the cached value when present\n"
+            "# import order matters here\n"
+            "# if x > 1:\n"
+            "# return None\n"
+            "# import os.path\n",
+            encoding="utf-8",
+        )
+
+        dead = [
+            i.line
+            for i in detect_static_patterns(test_file)
+            if i.category == SlopCategory.DEAD_CODE
+        ]
+        assert dead == [5, 6, 7]
+
 
 class TestParseRuffOutput:
     """parse_ruff_output 함수 테스트."""
@@ -312,3 +344,37 @@ class TestMain:
 
         assert main([str(tmp_path)]) == 0
         assert RUFF_SKIPPED_NOTICE in capsys.readouterr().out
+
+    def test_ruff_실패면_깨끗하다고_안_함(self, tmp_path, capsys, monkeypatch) -> None:
+        """ruff rc 가 0·1 이 아니면 F401 검사 실패 + stderr 를 알리고 깨끗하다고 하지 않는다."""
+        monkeypatch.setattr("slop_patterns.shutil.which", lambda _: "ruff")
+        monkeypatch.setattr(
+            "slop_patterns.subprocess.run",
+            lambda cmd, **_: subprocess.CompletedProcess(
+                cmd, 2, "", "ruff failed\n  Cause: bad pyproject.toml\n"
+            ),
+        )
+        (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+        assert main([str(tmp_path)]) == 0
+        out = capsys.readouterr().out
+        assert "F401 검사 실패" in out
+        assert "bad pyproject.toml" in out
+        assert "깨끗합니다" not in out
+
+        (tmp_path / "b.py").write_text("print(1)\n", encoding="utf-8")
+        main([str(tmp_path)])
+        out = capsys.readouterr().out
+        assert "leftover-debug" in out  # 정규식 결과는 그대로
+        assert "F401 검사 실패" in out
+
+    def test_비_UTF8_파일은_건너뜀_traceback_1회(self, tmp_path, capsys, monkeypatch) -> None:
+        """UTF-8 이 아닌 파일은 traceback 한 번만 남기고 리포트 끝에 건너뜀을 적는다."""
+        monkeypatch.setattr("slop_patterns.shutil.which", lambda _: None)
+        bad = tmp_path / "bad.py"
+        bad.write_bytes(b"\xff\xfe bad\n")
+
+        assert main([str(bad)]) == 0
+        captured = capsys.readouterr()
+        assert captured.err.count("Traceback (most recent call last)") == 1
+        assert f"건너뜀: {bad}" in captured.out

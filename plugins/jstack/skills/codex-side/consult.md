@@ -23,7 +23,9 @@ THE PLAN:
 
 ## 2. 실행
 
-**새 대화.** 저장소 밖이면 (`ROOT: none`) `cd "$(git rev-parse …)" &&` 와 `-C "$PWD"` 를 빼고 `--skip-git-repo-check` 를 붙인다.
+저장소 밖이면 (`ROOT: none`) 아래 두 블록 모두 `cd "$(git rev-parse …)" &&` 를 빼고 `--skip-git-repo-check` 를 붙인다. 새 대화는 `-C "$PWD"` 도 뺀다 (`exec resume` 엔 `-C` 가 없음).
+
+**새 대화.**
 
 ```bash
 D=$(mktemp -d) && cd "$(git rev-parse --show-toplevel)" && \

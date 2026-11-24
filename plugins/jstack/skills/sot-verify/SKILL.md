@@ -1,6 +1,6 @@
 ---
 name: sot-verify
-description: 프로젝트 `sot/` 문서셋을 검증한다 — Index 최신 여부, frontmatter·ID 규칙, Index 링크, drift(문서 기준 커밋 이후 코드 변경). 오류는 고치고 경고는 보고한다. `/jstack:sot-verify` 로만 실행.
+description: 프로젝트 `sot/` 문서셋을 검증한다 — Index 최신 여부, frontmatter·ID 규칙, Index 링크, drift(문서 기준 커밋 이후 코드 변경). 오류는 고치고 경고는 보고한다. `sot/` 를 고쳤거나 `verified_paths` 아래 코드가 바뀐 뒤 사용한다. `/jstack:sot-verify` 로만 실행.
 disable-model-invocation: true
 ---
 

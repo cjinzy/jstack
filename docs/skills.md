@@ -34,7 +34,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 7. 이전 대비 변경점·백업 경로·되돌리는 법을 보여주고 `onboard` 를 실행한다
 
 **결과물**: `~/.claude/CLAUDE.md`·보조 문서·`statusline-command.sh`·`settings.json` 갱신(바뀐 파일은 `<이름>_backup_<YYYYMMDD>.<확장자>` 로 백업), `~/.claude/.jin-claude-repo/`·`~/.claude/.venv/`·사용량 타이머(launchd/systemd)·`~/.claude/.jin-claude-plugins.json` 생성, 플러그인 설치
-**주의**: `statusLine`·`skipDangerousModePermissionPrompt` 같은 팀 필수 키는 기존 값을 덮어쓴다. 선택 해제한 플러그인은 제거하지 않는다. 타이머가 사라지면 세션 시작 hook 이 init 때 고른 주기(`~/.claude/.jin-claude-usage-interval`, 없으면 5분)로 다시 등록한다.
+**주의**: 팀 필수 키(`statusLine`·`env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`)는 기존 값을 덮어쓴다. `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 없을 때만 `true` 로 넣는다 — 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뛴다. 선택 해제한 플러그인은 제거하지 않는다. 타이머가 사라지면 세션 시작 hook 이 init 때 고른 주기(`~/.claude/.jin-claude-usage-interval`, 없으면 5분)로 다시 등록한다.
 
 <a name="onboard"></a>
 
@@ -103,12 +103,12 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 
 **동작**
 1. 이 세션은 계획·원장 관리·보고 종합·사용자 질문만 한다. 코드 수정·빌드·테스트·조사는 하위 세션 몫이다.
-2. plan 모드면 분배 계획(세션 이름·영역·mode·브리프)만 쓴다. 승인 후에 원장을 만들고 위임을 시작한다. (질문)
+2. plan 모드면 분배 계획(세션 이름·runner·영역·mode·브리프)만 쓴다. 승인 후에 원장을 만들고 위임을 시작한다. (질문)
 3. 원장 `.maestro/ledger.md` 를 현재 디렉터리에 만든다. git 저장소면 `.maestro/` 를 `info/exclude` 에 넣는다.
 4. 같은 영역의 active·idle 세션이 있으면 그 세션에 이어 맡긴다. 새 일은 새 하위 세션 `m-<영역>-<번호>` 가 받는다. herdr 안에서 실행 중이고 ultracode·오래 걸리는 일·사용자가 지켜보며 조정할 일이면 herdr pane 에 독립 Claude 세션을 띄우고(Workflow 사용 가능), 그 외엔 named subagent 를 쓴다. 후속 없는 넓은 1회성 일은 Workflow 로 직접 돌린다.
 5. 같은 저장소 파일을 동시에 고칠 세션이 둘 이상이면 세션마다 worktree 를 따로 준다. 병합도 하위 세션에 맡긴다.
 6. 맡길 때마다 mode 를 정한다: audit·마이그레이션·리뷰·고위험 변경은 `ultracode`, 소규모 수정은 `normal`.
-7. 하위 세션이 질문·결정·승인을 요청하면 오케스트레이터가 답하지 않고 사용자에게 그대로 묻는다. 받은 답을 그 세션에 전달한다. (질문)
+7. 하위 세션이 질문·결정·승인을 요청하면 오케스트레이터가 답하지 않고 사용자에게 그대로 묻는다. 받은 답을 그 세션에 전달한다. pane 이 승인·질문 화면에 막혀 있으면 사용자가 고른 답의 키만 `herdr agent send-keys` 로 넣고, 자유 텍스트 답은 사용자가 pane 에서 직접 입력한다. (질문)
 8. 하위 세션 보고(`STATUS: DONE|BLOCKED`, 변경 파일, 검증 증거, 질문, 후속)를 받아 원장을 고치고 사용자에게 요약한다.
 9. 후속도 맥락 유지 가치도 없는 세션은 보관한다. "maestro 종료" 라고 하면 전부 보관하고 최종 요약을 낸다.
 
@@ -127,7 +127,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 - **언제**: 새 프로젝트에 에이전트가 읽을 `AGENTS.md` 가 없을 때.
 
 **동작**
-1. `project_analyzer.py` 가 언어(확장자 빈도순), 프레임워크, 구조(`monorepo`·`standard`·`flat`)를 감지한다. `.git`·`.venv`·`node_modules`·`dist`·`build` 등은 건너뛴다.
+1. `project_analyzer.py` 가 언어(확장자 빈도순), 프레임워크, 구조(`monorepo`·`standard`·`flat`)를 감지한다. 언어 집계는 `IGNORE_DIRS`(`.git`·`.venv`·`node_modules`·`dist`·`build` 등) 이름만 건너뛰고, 그 밖의 숨김 폴더(`.claude/` 등)는 센다.
 2. 같은 스크립트가 `AGENTS.md` 초안을 출력한다: 프로젝트 개요, 루트와 한 단계 아래 디렉터리 트리(폴더당 5개까지), 사용 가능한 스킬 표.
 3. 스킬 표는 실행 시점의 플러그인 `skills/*/SKILL.md` 의 `name`·`description` 으로 채운다.
 4. `README.md`, 설정 파일, 엔트리 포인트를 읽어 아키텍처·개발 패턴·코딩 컨벤션을 보강한다. 근거 없는 내용은 쓰지 않는다.
@@ -135,22 +135,22 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 6. 없으면 만들 내용을 보여 주고 생성 여부를 묻는다 (질문). 승인한 내용만 쓴다.
 
 **결과물**: 프로젝트 루트 `AGENTS.md` (승인했을 때만).
-**주의**: 프레임워크는 루트에 있는 설정 파일(`package.json`, `pyproject.toml`, `requirements.txt` 등)만 보고, 패키지 이름 문자열이 들어 있는지로 판단한다. 초안의 제목·항목명은 한국어다. `python3` 가 필요하다 (표준 라이브러리만).
+**주의**: 프레임워크는 루트에 있는 설정 파일(`package.json`, `pyproject.toml`, `requirements.txt` 등)만 본다. `package.json` 은 `dependencies`·`devDependencies` 키가 패키지명과 정확히 같을 때, `pyproject.toml`·`requirements.txt` 는 파일에 패키지명 문자열이 있을 때(대소문자 무시), `Cargo.toml`·`go.mod` 등은 파일이 있으면 감지한다. 초안의 제목·항목명은 한국어다. `python3` 가 필요하다 (표준 라이브러리만).
 
 <a name="sot-create"></a>
 
 ## `sot-create` — 에이전트가 인용·검증하는 SoT 문서셋을 `sot/` 에 만든다
 
-- **호출**: `/jstack:sot-create [프로젝트 경로]` — 생략하면 현재 디렉터리. 자동 실행: "jin sot", "SoT 생성", "source of truth", "document this project" 같은 요청이나, 아키텍처·DB 스키마·워크플로·디자인 규칙을 문서로 정리하려는 요청을 Claude 가 알아보면 실행
+- **호출**: `/jstack:sot-create` — 인자 없음, 현재 디렉터리 대상. 자동 실행: "jin sot", "SoT 생성", "source of truth", "document this project" 같은 요청이나, 아키텍처·DB 스키마·워크플로·디자인 규칙을 문서로 정리하려는 요청을 Claude 가 알아보면 실행
 - **언제**: 프로젝트 지식이 `AGENTS.md`·`CLAUDE.md` 에 담기엔 크거나, 문서 체계를 처음 세울 때.
 
 **동작**
 1. 먼저 `interview` 스킬로 인터뷰해 스펙을 확정한다 (질문).
 2. 저장소를 읽기만 하며 조사한다: `deepinit` 분석기(언어·프레임워크·구조), 최신 커밋, 루트 `DESIGN.md` 유무.
 3. `sot/` 아래 7개 카테고리 디렉터리(`overview`·`tech-stack`·`database-schema`·`architecture`·`workflow`·`design`·`rules`)와 `rules/sot-maintenance.md` 를 만든다. 이건 묻지 않는다.
-4. `.gitignore` 에 `sot/`, `CLAUDE.md` 에 `## SoT` 블록을 붙일지 줄 단위로 보여 주고 묻는다 (질문). 승인한 것만 붙인다.
+4. `.gitignore` 에 `sot/`, `CLAUDE.md` 에 `## SoT` 블록(`CLAUDE.md`·`.claude/CLAUDE.md` 어디에도 `## SoT` 로 시작하는 제목이 없을 때만)을 붙일지 줄 단위로 보여 주고 묻는다 (질문). 승인한 것만 붙인다.
 5. 하위 주제마다 파일 하나를 만든다. 사실마다 `## ARC-001 — <주장>` 같은 ID 와 `Evidence: path:line` 을 단다. 모르는 건 `TODO(sot):` 로 남긴다.
-6. `sot_index.py` 가 각 문서 frontmatter 로 `Index.md` 를 생성한다.
+6. `sot_index.py` 가 각 문서 frontmatter 로 `Index.md` 를 생성한다. 스크립트가 만들지 않은 기존 `Index.md` 는 먼저 `Index.md.bak` 으로 복사한다.
 7. `sot_validate.py` 로 검증하고 error 는 모두 고친다. `DRIFT` 는 diff 를 읽어 사실을 고치거나 `status: stale` 로 표시한다. warning·info 는 요약에 넣는다.
 
 **결과물**: `sot/` 문서셋(`Index.md`, 카테고리별 문서, `rules/sot-maintenance.md`), 인터뷰 스펙 `docs/specs/<topic>-spec.md`. 승인 시 `.gitignore`·`CLAUDE.md` 에 몇 줄 추가.
@@ -167,7 +167,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 1. `sot/` 가 없으면 "SoT 없음 — `/jstack:sot-create`" 한 줄로 끝난다.
 2. `sot-create` 의 `sot_index.py --check` 로 `Index.md` 가 최신인지 본다. 낡았으면 다시 생성한다.
 3. `sot_validate.py` 로 frontmatter 필수 키, ID 접두사·고유성, `Index.md` 링크, drift 를 검사한다.
-4. drift 는 `git diff <verified_commit>..HEAD -- <verified_paths>` 로 잡는다. `status: verified` 문서면 error, 아니면 warning 이다.
+4. drift 는 `git diff <verified_commit>..HEAD -- <verified_paths>` 로 잡는다. `status: verified` 문서면 error, 아니면 warning 이다. `verified_commit` 은 16진 커밋 SHA(4–40자)만 받는다. 태그·브랜치명은 해석 불가 경고(`UNVERIFIABLE_COMMIT`)다.
 5. 구조 error 는 해당 문서의 frontmatter·ID 를 고치고 `Index.md` 를 다시 만든다.
 6. `DRIFT` 는 diff 를 읽고 사실을 고친 뒤 `updated`·`verified_commit` 을 올린다. 판단이 안 서면 `status: stale` 과 확인할 내용을 `TODO(sot):` 로 단다.
 7. error 가 0 이 될 때까지 다시 검사하고, 문서·fact 수, drift 의심 파일 수, 수정·남은 error, warning 개수를 보고한다.
@@ -189,8 +189,8 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 **동작**
 1. 경로를 주면 그 경로 전체를 본다.
 2. 경로가 없으면 미커밋 변경과 untracked 파일을 본다. 둘 다 없으면 최근 커밋(`HEAD~1` 대비)을 본다.
-3. `slop_patterns.py` 로 정적 스캔한다: 디버그 출력(`print(`·`console.log(`·`debugger`·`pdb`·`breakpoint(`), `#` 로 주석 처리된 코드, TODO·FIXME 류 주석(`#`, JS/TS 는 `//` 도). Python 패턴은 `.py` 에만, JS 패턴(`console.log`·`debugger`)은 JS/TS 파일에만 적용한다.
-4. `ruff` 가 있으면 Python 미사용 임포트(F401)도 찾는다. 없으면 건너뛰고 리포트에 적는다.
+3. `slop_patterns.py` 로 정적 스캔한다: 디버그 출력(`print(`·`console.log(`·`debugger`·`pdb`·`breakpoint(`), `#` 로 주석 처리된 코드 형태(`:` 로 끝나는 `def`·`if` 등, `return`·`import` 한 줄), 대문자 TODO·FIXME 류 주석(`#`, JS/TS 는 `//` 도). Python 패턴은 `.py` 에만, JS 패턴(`console.log`·`debugger`)은 JS/TS 파일에만 적용한다. diff 모드에선 `.py .js .jsx .ts .tsx .mjs .cjs` 파일만 스크립트에 넘긴다.
+4. `ruff` 가 있으면 Python 미사용 임포트(F401)도 찾는다. 없거나 실행에 실패하면(깨진 설정 등) 리포트 끝에 적고, 실패하면 깨끗하다고 하지 않는다. UTF-8 이 아닌 파일은 건너뛰고 리포트 끝에 적는다.
 5. Claude 가 파일을 읽고 정규식이 못 잡는 것을 찾는다: 자명한 주석, 과잉·빈 예외 처리, 상투적 docstring, 한 곳에서만 쓰는 래퍼, 뻔한 타입 표기.
 6. diff 모드에선 변경된 라인만 남긴다. untracked 파일은 전체가 대상이다.
 7. 오탐(의도된 `print` 등)을 걸러 하나의 리포트로 합친다: 심각도(critical·warning·info)별 요약, 이슈 표, 카테고리별 상세.
@@ -216,7 +216,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 8. consult 후속 질문이면 앞선 Codex 대화를 이어갈지 새로 시작할지 묻는다. (질문)
 
 **결과물**: 저장소 파일은 바꾸지 않는다. 임시 디렉터리에 `last.md`·`transcript.log` 를 만들고 끝나면 지운다. 프롬프트와 저장소 내용이 OpenAI 로 간다.
-**주의**: `codex` CLI(`npm install -g @openai/codex`)와 `codex login`(또는 `CODEX_API_KEY`·`OPENAI_API_KEY`)이 필요하다. 실행 실패·타임아웃·빈 출력은 리뷰 FAIL 로 본다. `xhigh` effort 는 타임아웃에 걸리기 쉬우니 `high` 로 다시 시도한다.
+**주의**: `codex` CLI(`npm install -g @openai/codex`)와 `codex login`(또는 `CODEX_API_KEY`·`OPENAI_API_KEY`)이 필요하다. 실행 실패·타임아웃·빈 출력(생각만 있고 답이 없는 경우 포함)은 리뷰 FAIL 로 본다. `xhigh` effort 는 타임아웃에 걸리기 쉬우니 `high` 로 다시 시도한다.
 
 ---
 
@@ -232,7 +232,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 **동작**
 1. `git status`·`git diff`(스테이징돼 있으면 `git diff --staged`)로 변경을 분석한다
 2. 지정한 파일이나 이번 변경에 속한 파일만 대상으로 고른다. 무관한 변경·비밀 파일(`.env` 등)은 빼고 알린다. 대상이 모호할 때만 묻는다 (질문)
-3. 변경 성격에 맞는 gitmoji 를 고르고 `<이모지> [<이슈 ID>] <한국어 제목> [— 스코프] [+ 추가사항]` 형식으로 메시지를 쓴다. 이슈 ID(예: `[MOLE-123]`)는 브랜치 이름이나 대화에서 알 수 있을 때만 넣는다. 인자가 있으면 반영한다
+3. 변경 성격에 맞는 gitmoji 를 고르고 `<이모지> [<이슈 ID>] <한국어 제목> [— 스코프] [+ 추가사항]` 형식으로 메시지를 쓴다. 이슈 ID 는 대괄호 포함(예: `[MOLE-123]`)이며 브랜치 이름이나 대화에서 알 수 있을 때만 넣는다. `[— 스코프]`·`[+ 추가사항]` 은 선택이며 대괄호는 쓰지 않는다. 인자가 있으면 반영한다
 4. 확인 없이 `git add <파일>` → `git commit` 한다. 호출 자체가 커밋 승인이다
 5. 커밋 해시·메시지·포함/제외 파일을 보고한다
 
@@ -251,7 +251,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 2. 프로젝트 `CLAUDE.md` 의 `Linear project: <이름>` 줄로 프로젝트를 정한다. 없으면 묻고 그 줄을 써 넣는다 (질문)
 3. 보관된 이슈까지 먼저 검색하고 없을 때만 만든다. 기본값은 우선순위 Medium, 담당자 본인, 기존 라벨. 큰 작업은 상위 이슈 + 결과물마다 하위 이슈
 4. 작업 전에 댓글과 그 안의 `+++ Agent notes` 블록을 모두 읽는다
-5. 진행에 맞춰 상태를 바꾸고 정해진 양식으로 댓글을 단다: 계획 → `Plan` + Plan 댓글, 작업 → `In Progress`, 막힘 → BLOCKED 댓글 후 중단, 완료 → 커밋 후 Done 댓글 + `Done`(검토가 필요하면 `Feedback`). Done·BLOCKED 댓글에는 이번 작업의 커밋을 짧은 해시로 모두 적는다
+5. 진행에 맞춰 상태를 바꾸고 정해진 양식으로 댓글을 단다: 계획 → `Plan` + Plan 댓글, 작업 → `In Progress`, 막힘 → BLOCKED 댓글 후 중단, 완료 → 커밋 후 Done 댓글 + `Done`·due date(검토가 필요하면 `Feedback`). Done·BLOCKED 댓글에는 이번 작업의 커밋을 짧은 해시로 모두 적는다
 6. 모든 커밋·PR 에 이슈 ID 를 넣는다 (커밋 제목 `✨ [MOLE-123] …`). 브랜치는 `<user>/<issue-id>` 소문자다 (예: `jin/mole-123`)
 7. 다른 사람을 멘션·담당자 지정하거나 요청하는 글(BLOCKED `필요` 포함)은 대상과 문구를 먼저 보여 주고 승인받은 뒤 쓴다 (질문). 이슈·댓글 문장은 늘 합니다체로 정중하게 쓴다
 

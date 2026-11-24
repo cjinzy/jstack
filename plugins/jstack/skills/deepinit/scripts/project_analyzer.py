@@ -109,7 +109,6 @@ FRAMEWORK_INDICATORS: dict[str, dict] = {
     },
     "pyproject.toml": {
         "type": "toml",
-        "dep_keys": ["project.dependencies", "tool.poetry.dependencies"],
         "frameworks": {
             "fastapi": "FastAPI",
             "django": "Django",
@@ -216,14 +215,17 @@ def detect_languages(project_dir: Path) -> list[str]:
 def detect_frameworks(project_dir: Path) -> dict[str, str]:
     """프로젝트 설정 파일에서 프레임워크를 감지한다.
 
-    package.json, pyproject.toml 등의 설정 파일을 파싱하여
-    사용 중인 프레임워크를 식별한다.
+    루트의 설정 파일만 본다. 매칭 방식은 파일 종류별로 다르다.
+    - package.json: `dependencies`·`devDependencies` 키가 패키지명과 정확히 일치
+    - pyproject.toml·requirements.txt: 파일 텍스트에 패키지명이 들어 있으면 (대소문자 무시)
+    - Cargo.toml 등 indicator: 파일이 있으면
 
     Args:
         project_dir: 분석할 프로젝트 디렉토리 경로.
 
     Returns:
-        감지된 프레임워크 딕셔너리 (설정파일명 → 프레임워크명).
+        감지된 프레임워크 딕셔너리 (패키지명 → 프레임워크명).
+        indicator 는 설정파일명 → 프레임워크명.
     """
     detected: dict[str, str] = {}
 

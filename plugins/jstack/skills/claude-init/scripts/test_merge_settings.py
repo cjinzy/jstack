@@ -133,8 +133,21 @@ PERSONAL_HOOK = {"hooks": [{"type": "command", "command": "echo mine"}]}
 def test_forces_required_keys(tmp_path: Path) -> None:
     """팀 필수 키는 기존 값을 덮어쓴다."""
     path = tmp_path / "settings.json"
-    path.write_text(json.dumps({"enableAllProjectMcpServers": False}))
-    assert merge_settings(path)["enableAllProjectMcpServers"] is True
+    path.write_text(json.dumps({"statusLine": {"type": "command", "command": "mine.sh"}}))
+    assert merge_settings(path)["statusLine"] == REQUIRED_SETTINGS["statusLine"]
+
+
+def test_security_keys_respect_user_false(tmp_path: Path) -> None:
+    """MCP 자동 승인·위험 모드 경고 생략은 없을 때만 true — 사용자가 끈 값은 보존."""
+    keys = ("enableAllProjectMcpServers", "skipDangerousModePermissionPrompt")
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps(dict.fromkeys(keys, False)))
+    result = merge_settings(path)
+    assert [result[k] for k in keys] == [False, False]
+
+    path.write_text("{}")
+    result = merge_settings(path)
+    assert [result[k] for k in keys] == [True, True]
 
 
 def test_preserves_user_preferences(tmp_path: Path) -> None:
@@ -145,6 +158,12 @@ def test_preserves_user_preferences(tmp_path: Path) -> None:
     assert result["model"] == "sonnet"
     assert result["permissions"]["defaultMode"] == "auto"
     assert result["language"] == DEFAULT_SETTINGS["language"]
+
+
+def test_no_output_style_default(tmp_path: Path) -> None:
+    """outputStyle 은 넣지 않는다 — 필수 i-have-adhd 와 충돌 (audit known:output-style)."""
+    path = tmp_path / "settings.json"
+    assert "outputStyle" not in merge_settings(path)
 
 
 def test_keeps_personal_hooks_drops_legacy(tmp_path: Path) -> None:
@@ -160,7 +179,7 @@ def test_keeps_personal_hooks_drops_legacy(tmp_path: Path) -> None:
 def test_changed_settings_backed_up_with_diff(tmp_path: Path) -> None:
     """변경 시 settings_backup_<날짜>.json 백업 + 키 단위 diff(구버전 hooks 삭제 포함) 기록."""
     path = tmp_path / "settings.json"
-    original = {"enableAllProjectMcpServers": False, "hooks": {"Stop": [LEGACY_HOOK]}, "customKey": 1}
+    original = {"statusLine": {"type": "command", "command": "mine.sh"}, "hooks": {"Stop": [LEGACY_HOOK]}, "customKey": 1}
     path.write_text(json.dumps(original))
 
     merge_settings(path)
@@ -171,7 +190,7 @@ def test_changed_settings_backed_up_with_diff(tmp_path: Path) -> None:
     entry = report_changes.load_report()[str(path)]
     assert entry["status"] == report_changes.CHANGED
     assert entry["backup"] == str(bak)
-    assert entry["diff"]["changed"]["enableAllProjectMcpServers"] == [False, True]
+    assert entry["diff"]["changed"]["statusLine.command"] == ["mine.sh", REQUIRED_SETTINGS["statusLine"]["command"]]
     assert entry["diff"]["removed"] == {"hooks": {"Stop": [LEGACY_HOOK]}}
     assert "language" in entry["diff"]["added"]
     assert "customKey" not in entry["diff"]["added"]

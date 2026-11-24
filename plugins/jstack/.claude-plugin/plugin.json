@@ -1,7 +1,7 @@
 {
   "name": "jstack",
   "version": "6.3.3",
-  "description": "Team-standard skills & hooks for Claude Code: 12 skills, SessionStart + UserPromptSubmit hooks, statusline",
+  "description": "Team-standard skills & hooks for Claude Code: 13 skills, SessionStart + UserPromptSubmit hooks, statusline",
   "author": {
     "name": "jin",
     "email": "jin@stealthmole.com"
@@ -11,7 +11,8 @@
   "keywords": [
     "skills",
     "workflow",
-    "tdd",
+    "linear",
+    "orchestration",
     "code-review",
     "hooks",
     "statusline",

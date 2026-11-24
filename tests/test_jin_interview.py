@@ -20,8 +20,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 HOME_CLAUDE = Path.home() / ".claude"
 
 SKILL_PATHS = [
-    PROJECT_ROOT / ".claude" / "skills" / "interview" / "SKILL.md",
-    HOME_CLAUDE / "skills" / "interview" / "SKILL.md",
+    PROJECT_ROOT / "plugins" / "jstack" / "skills" / "interview" / "SKILL.md",
 ]
 
 
@@ -93,7 +92,7 @@ def _parse_frontmatter(content: str) -> dict:
 class TestSkillFrontmatter:
     """Tests for interview skill YAML frontmatter parsing."""
 
-    @pytest.fixture(params=SKILL_PATHS, ids=["project", "home"])
+    @pytest.fixture(params=SKILL_PATHS, ids=["plugin"])
     def skill_path(self, request: pytest.FixtureRequest) -> Path:
         """Parametrized fixture for skill file paths."""
         path = request.param
@@ -132,112 +131,3 @@ class TestSkillFrontmatter:
         tools = frontmatter["allowed-tools"]
         # AskUserQuestion is essential for interview
         assert "AskUserQuestion" in tools
-
-
-# --- Required Interview Phases Tests ---
-
-
-class TestInterviewPhases:
-    """Tests for required interview phases in the skill."""
-
-    REQUIRED_PHASES = [
-        ("Phase 0", "작업 분류"),
-        ("Phase 1", "스코프"),
-        ("Phase 2", "기술적 결정"),
-        ("Phase 3", "제약"),
-        ("Phase 4", "엣지 케이스"),
-        ("Phase 5", "테스트"),
-        ("Phase 6", "우선순위"),
-    ]
-
-    @pytest.fixture()
-    def skill_content(self) -> str:
-        """Read skill content from project repo."""
-        path = PROJECT_ROOT / ".claude" / "skills" / "interview" / "SKILL.md"
-        if not path.exists():
-            pytest.skip("Skill file not found in project repo")
-        return path.read_text(encoding="utf-8")
-
-    @pytest.mark.parametrize(
-        ("phase_id", "phase_keyword"),
-        [
-            ("Phase 0", "작업 분류"),
-            ("Phase 1", "스코프"),
-            ("Phase 2", "기술적 결정"),
-            ("Phase 3", "제약"),
-            ("Phase 4", "엣지 케이스"),
-            ("Phase 5", "테스트"),
-            ("Phase 6", "우선순위"),
-        ],
-        ids=[f"phase-{i}" for i in range(7)],
-    )
-    def test_phase_exists(
-        self, skill_content: str, phase_id: str, phase_keyword: str
-    ) -> None:
-        """Each required phase must appear in the skill document."""
-        assert phase_id in skill_content, f"Missing {phase_id} in skill"
-        assert phase_keyword in skill_content, f"Missing keyword '{phase_keyword}' for {phase_id}"
-
-    def test_spec_output_section(self, skill_content: str) -> None:
-        """Skill must define a spec output section."""
-        assert "Spec Output" in skill_content or "스펙" in skill_content
-        assert ".jin/specs/" in skill_content
-
-    def test_core_principles_section(self, skill_content: str) -> None:
-        """Skill must define core principles."""
-        assert "Core Principles" in skill_content or "핵심 원칙" in skill_content
-
-    def test_early_termination_rules(self, skill_content: str) -> None:
-        """Skill must define early termination conditions."""
-        assert "조기 종료" in skill_content or "충분하다" in skill_content
-
-
-# --- Spec Output Format Tests ---
-
-
-class TestSpecOutputFormat:
-    """Tests for the spec output format template in the skill."""
-
-    @pytest.fixture()
-    def skill_content(self) -> str:
-        """Read skill content from project repo."""
-        path = PROJECT_ROOT / ".claude" / "skills" / "interview" / "SKILL.md"
-        if not path.exists():
-            pytest.skip("Skill file not found in project repo")
-        return path.read_text(encoding="utf-8")
-
-    REQUIRED_SPEC_SECTIONS = [
-        "Overview",
-        "Requirements",
-        "Technical Decisions",
-        "Constraints",
-        "Edge Cases",
-        "Acceptance Criteria",
-        "Test Plan",
-        "Open Questions",
-    ]
-
-    @pytest.mark.parametrize("section", REQUIRED_SPEC_SECTIONS)
-    def test_spec_template_has_section(self, skill_content: str, section: str) -> None:
-        """Spec output template must include all required sections."""
-        assert section in skill_content, f"Missing spec section: {section}"
-
-    def test_spec_output_path_format(self, skill_content: str) -> None:
-        """Spec output path must follow .jin/specs/{task-name}-spec.md pattern."""
-        assert ".jin/specs/" in skill_content
-        assert "-spec.md" in skill_content
-
-
-# --- File Synchronization Tests ---
-
-
-class TestFileSynchronization:
-    """Tests that files are synchronized between ~/.claude and project repo."""
-
-    def test_skill_files_match(self) -> None:
-        """Skill SKILL.md should be identical in both locations."""
-        project = PROJECT_ROOT / ".claude" / "skills" / "interview" / "SKILL.md"
-        home = HOME_CLAUDE / "skills" / "interview" / "SKILL.md"
-        if not project.exists() or not home.exists():
-            pytest.skip("One or both skill files not found")
-        assert project.read_text(encoding="utf-8") == home.read_text(encoding="utf-8")

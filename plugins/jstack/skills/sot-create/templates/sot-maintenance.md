@@ -3,7 +3,7 @@ id: RUL-sot-maintenance
 category: rules
 title: How this docset is kept true
 status: verified
-updated: 2026-10-02
+updated: 2026-11-24
 ---
 
 # How this docset is kept true
@@ -15,9 +15,11 @@ Reserved id block: `RUL-9xx` is docset governance. Project rules use `RUL-0xx`.
 
 ## RUL-901 — SoT revalidation is manual: `/jstack:sot-verify`
 
-Nothing runs it automatically. Call it after editing `sot/` or when the code under
-`verified_paths` changed. Every `error` it reports is fixed; `warning` and `info` go in its
-summary. A green run is the only evidence this docset is still true.
+Nothing runs it automatically, and an agent cannot invoke it. After editing `sot/` or when the
+code under `verified_paths` changed, the user runs `/jstack:sot-verify`; an agent runs the
+sot-create skill's Step 4·5 scripts (`sot_index.py --check`, `sot_validate.py`) instead. Every
+`error` reported is fixed; `warning` and `info` go in the summary. A green run is the only
+evidence this docset is still true.
 
 ## RUL-902 — A `DRIFT` doc is corrected or explicitly marked stale — never left silently wrong
 
@@ -38,6 +40,7 @@ two places, one of them links to the other. Two copies drift, and then neither i
 
 ## RUL-904 — `Index.md` is regenerated from frontmatter, never hand-edited
 
-Add or remove a doc → `scripts/sot_index.py --root sot` (sot-create skill). A doc missing
-from the index does not exist as far as any reader is concerned, and `--check` in
-`/jstack:sot-verify` catches the omission before anyone relies on it.
+Add or remove a doc → `sot_index.py --root sot`, the sot-create skill's own script (sot-create
+Step 4; it ships with the jstack plugin, not this repo). A doc missing from the index does not
+exist as far as any reader is concerned, and `--check` in `/jstack:sot-verify` catches the
+omission before anyone relies on it.

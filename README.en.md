@@ -65,8 +65,10 @@ Keys written to `settings.json`:
 
 | Applied | Keys |
 |---|---|
-| Always overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `enableAllProjectMcpServers`, `statusLine`, `skipDangerousModePermissionPrompt` |
-| Only if missing | `permissions.defaultMode: plan`, `outputStyle: Explanatory`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
+| Always overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` |
+| Only if missing | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
+
+`enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` connect project `.mcp.json` servers without approval and skip the bypass-permissions mode warning. Set them to `false` to opt out — init keeps your value.
 
 ## Hooks
 
@@ -86,7 +88,7 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 - Line 1: directory, branch, model, effort, Claude Code version
 - Line 2: context use, cache-read tokens, 7-day usage with time to reset and pacing, per-model weekly limit
 - Colors move from green to red in 10 steps as usage grows.
-- Hide items in `~/.claude/statusline-config.txt` (`SHOW_USAGE=0`, …).
+- Hide the directory, branch or usage with `SHOW_DIRECTORY=0`, `SHOW_BRANCH=0`, `SHOW_USAGE=0` in `~/.claude/statusline-config.txt` (missing keys stay shown).
 
 Usage comes from `fetch-claude-usage`. It reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 30 seconds in `~/.claude/.usage-cache.json`. Python standard library only. Needs a subscription account (Pro/Max/Team/Enterprise).
 

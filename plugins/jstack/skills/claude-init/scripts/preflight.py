@@ -12,8 +12,8 @@ import sys
 import traceback
 from pathlib import Path
 
-from merge_settings import DEFAULT_SETTINGS, REQUIRED_SETTINGS  # 설정 단일 출처
-from sync_repo import SYNC_FILES  # Step 3 동기화 대상 단일 출처
+from merge_settings import REQUIRED_SETTINGS  # 설정 단일 출처
+from sync_repo import SYNC_FILES, cached_versions  # Step 3 동기화 대상·캐시 버전 정렬 단일 출처
 
 CLAUDE_DIR = Path.home() / ".claude"
 SETTINGS_PATH = CLAUDE_DIR / "settings.json"
@@ -72,11 +72,7 @@ def marketplaces_for(plugins: list[str]) -> list[str]:
 
 HOOK_TYPES = ["SessionStart", "UserPromptSubmit"]
 
-# context-mode는 Step 2의 플러그인이 자동 제공 (plugin:context-mode:context-mode)
-# 현재는 standalone으로 설치할 추가 MCP 서버가 없다.
-MCP_SERVERS: list[str] = []
-
-# Step 6 `--mcp`: jin 플러그인이 제공하는 MCP 연결 확인 (설치 여부는 plugins 항목이 본다).
+# Step 5 `--mcp`: init 이 설치한 플러그인이 제공하는 MCP 연결 확인 (설치 여부는 plugins 항목이 본다).
 # `claude mcp list` 는 모든 서버에 실제 연결 → 개인 MCP 하나가 30초 타임아웃이면 전체가 30초+ (실측 35초).
 MCP_LIST_TIMEOUT_SEC = 120
 MCP_CONNECTED = "✔ Connected"
@@ -153,22 +149,24 @@ def stale_synced_files() -> list[str]:
 
 
 def check_settings(settings: dict) -> dict:
-    """필수 설정 키가 존재하는지 비교한다.
+    """팀 필수 키(Step 4 가 덮어쓰는 키)가 같은 값인지 비교한다.
+
+    개인 선호 키(DEFAULT_SETTINGS)는 없을 때만 넣는 키라 보지 않는다 — 비워 둔 사용자가 영구 partial 이 되지 않게.
 
     Args:
         settings: settings.json 딕셔너리.
 
     Returns:
-        complete 여부와 missing 키 목록.
+        complete 여부와 missing(없거나 값이 다른) 키 목록.
     """
     missing = []
-    for key, value in {**DEFAULT_SETTINGS, **REQUIRED_SETTINGS}.items():
-        if key not in settings:
+    for key, value in REQUIRED_SETTINGS.items():
+        current = settings.get(key)
+        if isinstance(value, dict):
+            current = current if isinstance(current, dict) else {}
+            missing += [f"{key}.{sub}" for sub, v in value.items() if current.get(sub) != v]
+        elif current != value:
             missing.append(key)
-        elif isinstance(value, dict):
-            for sub_key in value:
-                if sub_key not in settings.get(key, {}):
-                    missing.append(f"{key}.{sub_key}")
     return {"complete": len(missing) == 0, "missing": missing}
 
 
@@ -222,24 +220,6 @@ def _get_uid() -> int:
     return os.getuid()
 
 
-def check_mcp_server(name: str) -> bool:
-    """특정 MCP 서버가 설치되어 있는지 확인한다.
-
-    standalone (예: "serena:") 또는 플러그인 제공 (예: "plugin:*:serena:") 모두 감지한다.
-
-    Args:
-        name: MCP 서버 이름.
-
-    Returns:
-        설치되어 있으면 True.
-    """
-    for line in (_mcp_list() or "").splitlines():
-        # standalone: "serena: ..." 또는 plugin: "plugin:X:serena: ..."
-        if line.strip().startswith(f"{name}:") or f":{name}:" in line:
-            return True
-    return False
-
-
 def _mcp_list() -> str | None:
     """`claude mcp list` stdout. 실행 실패·타임아웃이면 None."""
     try:
@@ -257,7 +237,7 @@ def check_mcp_health(listing: str | None, plugins: list[str]) -> dict:
     plugin 서버 이름 = `plugin:<plugin 이름>:<서버>`.
 
     Returns:
-        ok: 연결된 jin 플러그인 MCP. missing: 미연결 jin 플러그인 MCP (+ 원인 힌트).
+        ok: 연결된 init 설치 플러그인 MCP. missing: 미연결 init 설치 플러그인 MCP (+ 원인 힌트).
         other_failed: 그 외 미연결 서버 이름 (정보). command·오류 문구는 비밀이 섞일 수 있어 버린다.
     """
     report: dict = {"ok": [], "missing": [], "other_failed": []}
@@ -298,10 +278,7 @@ def check_hooks(settings: dict) -> dict:
     # 플러그인 캐시에서 hooks.json 탐색
     cache_base = CLAUDE_DIR / "plugins" / "cache" / "jstack" / "jstack"
     if cache_base.exists():
-        versions = sorted(
-            [d for d in cache_base.iterdir() if d.is_dir() and d.name[0].isdigit()],
-            key=lambda d: d.name,
-        )
+        versions = cached_versions(cache_base)
         if versions:
             hooks_json = versions[-1] / "hooks" / "hooks.json"
             if hooks_json.exists():
@@ -334,7 +311,6 @@ def determine_recommendation(report: dict) -> str:
         and report["settings"]["complete"] is True
         and report["venv"] is True
         and report["timer"] is True
-        and all(report.get(mcp, False) for mcp in MCP_SERVERS)
         and report["hooks"]["installed"] == report["hooks"]["total"]
     )
     if all_ok:
@@ -374,10 +350,6 @@ def run_preflight() -> dict:
     report["settings"] = check_settings(settings)
     report["venv"] = check_venv()
     report["timer"] = check_timer()
-
-    for mcp in MCP_SERVERS:
-        report[mcp] = check_mcp_server(mcp)
-
     report["hooks"] = check_hooks(settings)
     report["recommendation"] = determine_recommendation(report)
 
@@ -387,7 +359,7 @@ def run_preflight() -> dict:
 def main() -> None:
     """메인 진입점. JSON 결과를 stdout으로 출력한다."""
     try:
-        if "--mcp" in sys.argv[1:]:  # Step 6 전용 — 느려서 Step 0 에선 돌리지 않는다
+        if "--mcp" in sys.argv[1:]:  # Step 5 전용 — 느려서 Step 0 에선 돌리지 않는다
             report = {"mcp": check_mcp_health(_mcp_list(), selected_plugins())}
         else:
             report = run_preflight()

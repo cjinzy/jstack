@@ -132,7 +132,7 @@ TODO(sot): confirm whether the reporting job is an exception.
 | `id` | `<PREFIX>-<slug>`, globally unique |
 | `status` | `draft` (incomplete) · `verified` (checked against code) · `stale` (known out of date) |
 | `updated` | ISO date of the last human- or agent-verified edit |
-| `verified_commit` | commit SHA the doc was last checked against — expected for `verified` (missing → `UNVERIFIABLE_COMMIT` warning; `overview`·`rules` exempt) |
+| `verified_commit` | hex commit SHA (4–40 chars, not a branch or tag) the doc was last checked against — expected for `verified` together with `verified_paths` (either missing → `UNVERIFIABLE_COMMIT` warning; `overview`·`rules` exempt) |
 | `verified_paths` | repo-relative code paths this doc describes — the drift input |
 
 Body rules:
@@ -165,7 +165,7 @@ Collect ground truth before writing prose:
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/../deepinit/scripts/project_analyzer.py" .  # JSON: languages, frameworks, structure
 git log --oneline -1                                                       # baseline for verified_commit
-ls DESIGN.md design-system.md 2>/dev/null                                  # design token owner, if any
+ls DESIGN.md 2>/dev/null                                                   # design token owner, if any
 ```
 
 Repo evidence outranks the interview when the two disagree. Report the conflict (invariant 4)
@@ -188,7 +188,7 @@ interactive channel → apply neither; list each pending edit in the summary.
 | File | Guard (skip if true) | Append | Why |
 |---|---|---|---|
 | `.gitignore` | `grep -qxF 'sot/' .gitignore` | `sot/` | SoT is local-only |
-| `CLAUDE.md` | `grep -qxF '## SoT' CLAUDE.md` | block below | an agent changing unrelated code loads neither this skill nor `sot/Index.md`; only the auto-loaded `CLAUDE.md` makes it look |
+| `CLAUDE.md` | `[ -n "$(grep -hsE '^## SoT( .*)?$' CLAUDE.md .claude/CLAUDE.md)" ]` | block below | an agent changing unrelated code loads neither this skill nor `sot/Index.md`; only the auto-loaded `CLAUDE.md` makes it look |
 
 ```markdown
 
@@ -197,7 +197,8 @@ interactive channel → apply neither; list each pending edit in the summary.
 editing, then the docs covering the area you touch. Validation is manual: `/jstack:sot-verify`. Update protocol: `sot/rules/sot-maintenance.md`.
 ```
 
-`sot/` already exists → add only what is missing and regenerate `Index.md`, then run Step 5.
+`sot/` already exists → add only what is missing and regenerate `Index.md` (a hand-written one is
+first copied to `Index.md.bak`), then run Step 5.
 
 "Never overwrite" means never replace an existing doc with a template or rewrite it from
 scratch — the facts in it were someone's work. It does **not** mean the doc is frozen. Editing
@@ -240,6 +241,7 @@ citations break. The next free number:
 
 ```bash
 grep -rh '^## ARC-' sot/architecture/ | sort | tail -1
+grep -rh '^## RUL-0' sot/rules/ | sort | tail -1   # rules/: project rules only; RUL-9xx is reserved
 ```
 
 Anything unresolved becomes `TODO(sot):`, not a guess.
@@ -272,9 +274,9 @@ JSON on stdout, exit 1 on errors. Fix every `error` before reporting the SoT as 
 | `DUPLICATE_ID` | error | two owners for one id |
 | `NOT_INDEXED` / `DEAD_LINK` | error | `Index.md` is not the entry point |
 | `DRIFT` | error if `verified`, else warning | code changed since `verified_commit` |
-| `UNVERIFIABLE_COMMIT` | warning | freshness claimed but not checkable |
+| `UNVERIFIABLE_COMMIT` | warning | `verified` without `verified_commit` or `verified_paths` (`overview`·`rules` exempt), or `verified_commit` not resolvable (any status) |
 | `MANY_FACTS` | warning | hint: may cover more than one sub-topic — verify by reading |
-| `NO_FACTS` | warning | nothing stated |
+| `NO_FACTS` | warning | nothing stated (`draft` exempt) |
 | `TODO_OPEN` | info | open questions remain |
 
 ## Guardrails
@@ -282,7 +284,8 @@ JSON on stdout, exit 1 on errors. Fix every `error` before reporting the SoT as 
 - One doc = one sub-topic. Never one file per category, never one file for the whole SoT.
 - Do not invent categories; add sub-topic files inside the seven.
 - Design tokens stay in root `DESIGN.md`; `design/` cites them, never copies.
-- Do not overwrite existing `sot/` files.
+- Do not overwrite existing `sot/` files. Only `Index.md` is regenerated; one `sot_index.py` did
+  not write is kept as `Index.md.bak`.
 - Do not state a fact you cannot evidence — `TODO(sot):` instead.
 - `sot/` stays `.gitignore`d (local-only, per project `CLAUDE.md`).
 

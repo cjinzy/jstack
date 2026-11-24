@@ -19,18 +19,18 @@ SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 # 팀 공통 동작에 필요 → 항상 덮어쓴다.
 REQUIRED_SETTINGS: dict = {
     "env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"},
-    "enableAllProjectMcpServers": True,
     "statusLine": {
         "type": "command",
         "command": "bash ~/.claude/statusline-command.sh",
     },
-    "skipDangerousModePermissionPrompt": True,
 }
 
 # 개인 선호 → 키가 없을 때만 넣는다 (재 init 이 사용자 선택을 되돌리지 않게).
+# 보안 완화 2키(프로젝트 .mcp.json 자동 승인·위험 모드 경고 생략)도 여기 — 사용자가 끈 값을 존중한다.
 DEFAULT_SETTINGS: dict = {
+    "enableAllProjectMcpServers": True,
+    "skipDangerousModePermissionPrompt": True,
     "permissions": {"defaultMode": "plan"},
-    "outputStyle": "Explanatory",
     "language": "korean",
     "effortLevel": "high",
     "model": "opus",

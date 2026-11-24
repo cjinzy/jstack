@@ -198,7 +198,7 @@ class TestRetireLegacySkills:
 
 
 class TestAmbitionPlan:
-    """UserPromptSubmit: plan 모드면 ambition 여부를 묻게 하고, 프롬프트에 ambition 이 있으면 묻지 않고 3개 스킬 로드."""
+    """UserPromptSubmit: plan 모드면 ambition 여부를 묻게 하고, 프롬프트에 ambition 이 있으면 묻지 않고 jstack:ambition 로드."""
 
     @pytest.mark.parametrize("mode", ["plan", "default", "auto"])
     def test_keyword_loads_without_asking(self, mode: str) -> None:

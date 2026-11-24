@@ -65,8 +65,10 @@ claude plugin install jstack@jstack
 
 | 적용 | 키 |
 |---|---|
-| 항상 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `enableAllProjectMcpServers`, `statusLine`, `skipDangerousModePermissionPrompt` |
-| 없을 때만 | `permissions.defaultMode: plan`, `outputStyle: Explanatory`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
+| 항상 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` |
+| 없을 때만 | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
+
+`enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뜁니다. 원치 않으면 `false` 로 두세요 — init 이 유지합니다.
 
 ## Hooks
 
@@ -86,7 +88,7 @@ claude plugin install jstack@jstack
 - 1줄: 디렉토리, 브랜치, 모델, effort, Claude Code 버전
 - 2줄: 컨텍스트 사용률, 캐시 읽기 토큰, 7일 사용률·리셋까지 남은 시간·속도, 모델별 주간 한도
 - 사용률에 따라 녹색 → 빨강 10단계로 색이 바뀝니다.
-- 표시 항목은 `~/.claude/statusline-config.txt` 에서 끕니다 (`SHOW_USAGE=0` 등).
+- 디렉토리·브랜치·사용량은 `~/.claude/statusline-config.txt` 에 `SHOW_DIRECTORY=0`·`SHOW_BRANCH=0`·`SHOW_USAGE=0` 으로 끕니다 (빠진 키는 표시).
 
 사용량은 `fetch-claude-usage` 가 가져옵니다. Claude Code 로그인 토큰(`~/.claude/.credentials.json` 또는 macOS Keychain)으로 `https://api.anthropic.com/api/oauth/usage` 를 호출하고, 결과를 30초 동안 `~/.claude/.usage-cache.json` 에 캐시합니다. Python 표준 라이브러리만 씁니다. 구독(Pro/Max/Team/Enterprise) 계정이 필요합니다.
 

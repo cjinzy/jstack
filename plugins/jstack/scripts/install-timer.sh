@@ -3,7 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"              # plugins/jstack/
-REPO_DIR="$(dirname "$(dirname "$PLUGIN_DIR")")"   # repo root
 
 # 주기 선택: CLI 인자 또는 대화형 입력
 # Usage: install-timer.sh [1|3|5|10]
@@ -75,9 +74,12 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
-  # Reload and enable
-  systemctl --user daemon-reload
-  systemctl --user enable --now fetch-claude-usage.timer
+  # Reload and enable. 실패 시 timer 를 지워 session_init.py hook 이 다음 세션에 재시도하게 한다.
+  if ! { systemctl --user daemon-reload && systemctl --user enable --now fetch-claude-usage.timer; }; then
+    rm -f "$SYSTEMD_USER_DIR/fetch-claude-usage.timer" "$SYSTEMD_USER_DIR/fetch-claude-usage.service"
+    echo "[install-timer] systemd 등록 실패" >&2
+    exit 1
+  fi
 
   echo "[install-timer] Timer status:"
   systemctl --user status fetch-claude-usage.timer --no-pager || true
@@ -159,9 +161,13 @@ elif [ "$OS_TYPE" = "Darwin" ]; then
     launchctl bootout "$GUI_DOMAIN/$LABEL" 2>/dev/null || true
   fi
 
-  # 에이전트 등록
+  # 에이전트 등록. 실패 시 plist 를 지워 session_init.py hook 이 다음 세션에 재시도하게 한다.
   echo "[install-timer] 에이전트 등록 중..."
-  launchctl bootstrap "$GUI_DOMAIN" "$PLIST_DEST"
+  if ! launchctl bootstrap "$GUI_DOMAIN" "$PLIST_DEST"; then
+    rm -f "$PLIST_DEST"
+    echo "[install-timer] launchd 등록 실패" >&2
+    exit 1
+  fi
 
   echo ""
   echo "[install-timer] Done. Usage will be fetched every $INTERVAL."
@@ -170,7 +176,7 @@ elif [ "$OS_TYPE" = "Darwin" ]; then
 
 else
   echo "[install-timer] 지원하지 않는 OS: $OS_TYPE"
-  echo "[install-timer] Linux(systemd) 또는 macOS(launchd)만 지원됩니다."
+  echo "[install-timer] Linux(systemd), macOS(launchd), Windows Git Bash·MSYS·Cygwin(schtasks)만 지원됩니다."
   exit 1
 fi
 

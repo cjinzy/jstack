@@ -124,9 +124,21 @@ def test_design_category_links_root_design_md(tmp_path):
     assert result["facts"] == 1
 
 
-def test_verified_doc_with_changed_code_is_drift(tmp_path):
-    """The headline check: code moved under a doc that claims to be verified."""
-    repo = tmp_path
+def test_en_dash_heading_is_a_fact(tmp_path):
+    result = validate(build(tmp_path / "sot", doc=DOC + "\n## ARC-002 – En dash claim\n"))
+    assert result["facts"] == 2
+
+
+def test_heading_inside_code_fence_is_not_a_fact(tmp_path):
+    """An example heading in a fence is not a claim — counting it gives a false DUPLICATE_ID."""
+    fence = "\n```markdown\n## ARC-001 — Example only\n```\n"
+    result = validate(build(tmp_path / "sot", doc=DOC + fence))
+    assert result["ok"], result["findings"]
+    assert result["facts"] == 1
+
+
+def init_repo(repo: Path) -> str:
+    """Git repo with `src/gateway.py` committed. Returns the commit SHA."""
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
@@ -135,9 +147,32 @@ def test_verified_doc_with_changed_code_is_drift(tmp_path):
     (source / "gateway.py").write_text("x = 1\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-qm", "init"], cwd=repo, check=True)
-    baseline = subprocess.run(
+    return subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True
     ).stdout.strip()
+
+
+def test_option_like_verified_commit_is_not_passed_to_git(tmp_path):
+    """`verified_commit: --output=…` must not reach git as an option (it would write a file)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    init_repo(repo)
+    out = tmp_path / "out"
+    out.mkdir()
+    doc = DOC.replace(
+        "status: draft",
+        f"status: verified\nverified_commit: --output={out}/x\nverified_paths: src/",
+    )
+    result = validate(build(repo / "sot", doc=doc))
+    assert list(out.iterdir()) == []
+    assert "UNVERIFIABLE_COMMIT" in codes(result)
+
+
+def test_verified_doc_with_changed_code_is_drift(tmp_path):
+    """The headline check: code moved under a doc that claims to be verified."""
+    repo = tmp_path
+    baseline = init_repo(repo)
+    source = repo / "src"
 
     (source / "gateway.py").write_text("x = 2\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)

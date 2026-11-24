@@ -34,7 +34,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 7. Shows what changed, backup paths and how to roll back, then runs `onboard`
 
 **Output**: Updates `~/.claude/CLAUDE.md`, its include docs, `statusline-command.sh` and `settings.json` (changed files backed up as `<name>_backup_<YYYYMMDD>.<ext>`); creates `~/.claude/.jin-claude-repo/`, `~/.claude/.venv/`, a launchd/systemd usage timer and `~/.claude/.jin-claude-plugins.json`; installs plugins
-**Notes**: Team-required keys such as `statusLine` and `skipDangerousModePermissionPrompt` overwrite your values. Deselected plugins are not uninstalled. If the timer disappears, the session-start hook re-registers it with the interval chosen at init (`~/.claude/.jin-claude-usage-interval`, 5 minutes if absent).
+**Notes**: Team-required keys (`statusLine`, `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) overwrite your values. `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` are set to `true` only if absent — this connects project `.mcp.json` servers without approval and skips the bypass-permissions mode warning. Deselected plugins are not uninstalled. If the timer disappears, the session-start hook re-registers it with the interval chosen at init (`~/.claude/.jin-claude-usage-interval`, 5 minutes if absent).
 
 <a name="onboard"></a>
 
@@ -103,12 +103,12 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 
 **How it works**
 1. This session only plans, keeps the ledger, consolidates reports, and asks you questions. Code edits, builds, tests, and research go to sub-sessions.
-2. In plan mode, it writes only the dispatch plan (session names, areas, mode, briefs). After approval it creates the ledger and starts delegating. (asks)
+2. In plan mode, it writes only the dispatch plan (session names, runners, areas, mode, briefs). After approval it creates the ledger and starts delegating. (asks)
 3. Creates the ledger `.maestro/ledger.md` in the current directory. In a git repo, adds `.maestro/` to `info/exclude`.
 4. If an active or idle session owns the same area, it gets the work. New work goes to a new sub-session `m-<area>-<n>`: inside herdr, ultracode, long, or user-steered jobs get an independent Claude session in a herdr pane (Workflow available); everything else gets a named subagent. Broad one-off jobs with no follow-up run directly as a Workflow.
 5. When two or more sessions will edit files in the same repo at once, each gets its own worktree. Merging is delegated too.
 6. Picks a mode per hand-off: `ultracode` for audits, migrations, reviews, and high-risk changes; `normal` for small fixes.
-7. When a sub-session asks a question or needs a decision or approval, the orchestrator does not answer it. It asks you as-is and passes your answer back. (asks)
+7. When a sub-session asks a question or needs a decision or approval, the orchestrator does not answer it. It asks you as-is and passes your answer back. A pane stuck on an approval or question screen gets only the keys for the answer you picked via `herdr agent send-keys`; free-text answers you type in the pane yourself. (asks)
 8. Takes each sub-session report (`STATUS: DONE|BLOCKED`, changed files, verification evidence, questions, follow-ups), updates the ledger, and summarizes for you.
 9. Archives sessions with no follow-up and no context worth keeping. Say "maestro 종료" to archive all and get a final summary.
 
@@ -127,7 +127,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 - **When**: A new project has no `AGENTS.md` for agents to read.
 
 **How it works**
-1. `project_analyzer.py` detects languages (by file-extension frequency), frameworks, and structure (`monorepo`, `standard`, `flat`). It skips `.git`, `.venv`, `node_modules`, `dist`, `build`, and similar.
+1. `project_analyzer.py` detects languages (by file-extension frequency), frameworks, and structure (`monorepo`, `standard`, `flat`). Language counts skip only `IGNORE_DIRS` names (`.git`, `.venv`, `node_modules`, `dist`, `build`, …); other hidden folders such as `.claude/` are counted.
 2. The same script prints an `AGENTS.md` draft: project overview, a directory tree of the root plus one level down (up to 5 entries per folder), and a table of available skills.
 3. The skills table is built at run time from the plugin's `skills/*/SKILL.md` `name` and `description`.
 4. Reads `README.md`, config files and entry points to add architecture, dev patterns and coding conventions. Nothing without evidence.
@@ -135,22 +135,22 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 6. If not, shows what it will create and asks whether to create it (asks). Writes only approved content.
 
 **Output**: `AGENTS.md` at the project root, only if approved.
-**Notes**: Frameworks come only from config files at the project root (`package.json`, `pyproject.toml`, `requirements.txt`, etc.), matched by whether the package name appears in the file. Draft headings and labels are in Korean. Needs `python3` (stdlib only).
+**Notes**: Frameworks come only from config files at the project root (`package.json`, `pyproject.toml`, `requirements.txt`, etc.). `package.json` matches exact keys in `dependencies`/`devDependencies`; `pyproject.toml` and `requirements.txt` match when the package name appears anywhere in the file (case-insensitive); `Cargo.toml`, `go.mod` and similar count by presence. Draft headings and labels are in Korean. Needs `python3` (stdlib only).
 
 <a name="sot-create"></a>
 
 ## `sot-create` — Build a SoT docset in `sot/` that agents can cite and verify
 
-- **Invocation**: `/jstack:sot-create [project path]` — defaults to the current directory. Auto-run: when Claude recognizes requests like "jin sot", "SoT 생성", "source of truth", "document this project", or a request to document architecture, DB schema, workflows or design rules
+- **Invocation**: `/jstack:sot-create` — no arguments; targets the current directory. Auto-run: when Claude recognizes requests like "jin sot", "SoT 생성", "source of truth", "document this project", or a request to document architecture, DB schema, workflows or design rules
 - **When**: Project knowledge is too big for `AGENTS.md` or `CLAUDE.md`, or you are setting up project docs for the first time.
 
 **How it works**
 1. Runs the `interview` skill first to settle a spec (asks).
 2. Probes the repo read-only: the `deepinit` analyzer (languages, frameworks, structure), the latest commit, and whether a root `DESIGN.md` exists.
 3. Creates the seven category directories under `sot/` (`overview`, `tech-stack`, `database-schema`, `architecture`, `workflow`, `design`, `rules`) plus `rules/sot-maintenance.md`. No confirmation for this.
-4. Shows the exact lines to append, `sot/` to `.gitignore` and a `## SoT` block to `CLAUDE.md`, and asks for each (asks). Appends only what you approve.
+4. Shows the exact lines to append, `sot/` to `.gitignore` and a `## SoT` block to `CLAUDE.md` (only when neither `CLAUDE.md` nor `.claude/CLAUDE.md` has a heading starting with `## SoT`), and asks for each (asks). Appends only what you approve.
 5. Writes one file per sub-topic. Each fact gets an ID heading like `## ARC-001 — <claim>` and an `Evidence: path:line`. Unknowns become `TODO(sot):`.
-6. `sot_index.py` generates `Index.md` from each doc's frontmatter.
+6. `sot_index.py` generates `Index.md` from each doc's frontmatter. An existing `Index.md` the script did not write is copied to `Index.md.bak` first.
 7. Validates with `sot_validate.py` and fixes every error. On `DRIFT` it reads the diff and corrects the facts, or marks the doc `status: stale`. Warnings and info go in the summary.
 
 **Output**: The `sot/` docset (`Index.md`, per-category docs, `rules/sot-maintenance.md`) and the interview spec `docs/specs/<topic>-spec.md`. If approved, a few lines added to `.gitignore` and `CLAUDE.md`.
@@ -167,7 +167,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 1. If `sot/` is missing, it stops with one line: "SoT 없음 — `/jstack:sot-create`".
 2. Runs `sot-create`'s `sot_index.py --check` to see if `Index.md` is current. If stale, regenerates it.
 3. Runs `sot_validate.py`: required frontmatter keys, ID prefix and uniqueness, `Index.md` links, and drift.
-4. Drift comes from `git diff <verified_commit>..HEAD -- <verified_paths>`. It is an error for `status: verified` docs, a warning otherwise.
+4. Drift comes from `git diff <verified_commit>..HEAD -- <verified_paths>`. It is an error for `status: verified` docs, a warning otherwise. `verified_commit` must be a hex commit SHA (4–40 chars); a tag or branch name gives an `UNVERIFIABLE_COMMIT` warning.
 5. Structural errors: fixes the doc's frontmatter or ID, then regenerates `Index.md`.
 6. `DRIFT`: reads the diff, corrects the facts, and bumps `updated` and `verified_commit`. If it cannot tell, sets `status: stale` and adds a `TODO(sot):` naming what to check.
 7. Re-runs until errors are zero, then reports doc and fact counts, files with suspected drift, errors fixed and left, and warning counts.
@@ -189,8 +189,8 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 **How it works**
 1. With a path, scans everything under it.
 2. Without a path, scans uncommitted changes plus untracked files. If both are empty, scans the last commit (vs `HEAD~1`).
-3. Runs `slop_patterns.py` for static checks: debug output (`print(`, `console.log(`, `debugger`, `pdb`, `breakpoint(`), code commented out with `#`, and TODO/FIXME-style comments (`#`, plus `//` in JS/TS). Python patterns apply only to `.py` files, JS patterns (`console.log`, `debugger`) only to JS/TS files.
-4. If `ruff` is installed, also finds unused Python imports (F401). If not, skips that and says so in the report.
+3. Runs `slop_patterns.py` for static checks: debug output (`print(`, `console.log(`, `debugger`, `pdb`, `breakpoint(`), code-shaped lines commented out with `#` (`def`/`if` etc. ending in `:`, one-line `return`/`import`), and uppercase TODO/FIXME-style comments (`#`, plus `//` in JS/TS). Python patterns apply only to `.py` files, JS patterns (`console.log`, `debugger`) only to JS/TS files. In diff mode, only `.py .js .jsx .ts .tsx .mjs .cjs` files go to the script.
+4. If `ruff` is installed, also finds unused Python imports (F401). If it is missing or fails (e.g. broken config), says so at the end of the report; on failure the report does not call the code clean. Non-UTF-8 files are skipped and listed at the end.
 5. Claude reads the files for what regex misses: obvious comments, excessive or empty exception handling, boilerplate docstrings, single-use wrappers, self-evident type annotations.
 6. In diff mode, keeps only changed lines. Untracked files count in full.
 7. Drops false positives (an intended `print`, say) and merges everything into one report: summary by severity (critical, warning, info), issue table, per-category details.
@@ -216,7 +216,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 8. On a consult follow-up, asks whether to resume the earlier Codex conversation or start fresh. (asks)
 
 **Output**: No repo files change. A temp dir holds `last.md` and `transcript.log`, deleted at the end. The prompt and repo content go to OpenAI.
-**Notes**: Needs the `codex` CLI (`npm install -g @openai/codex`) and `codex login` (or `CODEX_API_KEY`/`OPENAI_API_KEY`). A failed run, timeout, or empty output counts as review FAIL. `xhigh` effort tends to time out; retry with `high`.
+**Notes**: Needs the `codex` CLI (`npm install -g @openai/codex`) and `codex login` (or `CODEX_API_KEY`/`OPENAI_API_KEY`). A failed run, timeout, or empty output (including reasoning with no answer) counts as review FAIL. `xhigh` effort tends to time out; retry with `high`.
 
 ---
 
@@ -232,7 +232,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 **How it works**
 1. Analyzes changes with `git status` and `git diff` (`git diff --staged` if files are staged)
 2. Selects only the files you named or the files belonging to this change. Unrelated changes and secrets (`.env` etc.) are left out and reported. Asks only when the target files are ambiguous (asks)
-3. Picks a gitmoji for the kind of change and writes `<emoji> [<issue ID>] <Korean title> [— scope] [+ extras]`. The issue ID (e.g. `[MOLE-123]`) is added only when the branch name or conversation gives it. Uses the argument if given
+3. Picks a gitmoji for the kind of change and writes `<emoji> [<issue ID>] <Korean title> [— scope] [+ extras]`. The issue ID keeps its brackets (e.g. `[MOLE-123]`) and is added only when the branch name or conversation gives it. `[— scope]` and `[+ extras]` are optional and written without brackets. Uses the argument if given
 4. Runs `git add <files>` → `git commit` without confirmation. Invoking the skill is the approval
 5. Reports the commit hash, message, and included/excluded files
 
@@ -251,7 +251,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 2. Takes the project from the `Linear project: <name>` line in the project `CLAUDE.md`. If missing, asks and writes that line (asks)
 3. Searches existing issues first, archived included, and creates only if none exists. Defaults: priority Medium, assignee me, an existing label. Large tasks get a parent plus one sub-issue per deliverable
 4. Before work, reads the comments and every `+++ Agent notes` block in them
-5. Moves status and comments with fixed templates: plan → `Plan` + Plan comment; work → `In Progress`; blocked → BLOCKED comment, then stops; done → commit, then Done comment + `Done` (`Feedback` if you must review). Done and BLOCKED comments list every commit of the task as short hashes
+5. Moves status and comments with fixed templates: plan → `Plan` + Plan comment; work → `In Progress`; blocked → BLOCKED comment, then stops; done → commit, then Done comment + `Done` with a due date (`Feedback` if you must review). Done and BLOCKED comments list every commit of the task as short hashes
 6. Puts the issue ID in every commit and PR (commit title `✨ [MOLE-123] …`). Branch is `<user>/<issue-id>` in lowercase (e.g. `jin/mole-123`)
 7. Anything that mentions, assigns, or asks another person (BLOCKED `필요` included) is shown to you with recipient and exact text, and written only after you approve (asks). Issue and comment sentences are always polite (합니다체)
 

@@ -1,15 +1,10 @@
 #!/bin/bash
 config_file="$HOME/.claude/statusline-config.txt"
-if [ -f "$config_file" ]; then
-  source "$config_file"
-  show_dir=$SHOW_DIRECTORY
-  show_branch=$SHOW_BRANCH
-  show_usage=$SHOW_USAGE
-else
-  show_dir=1
-  show_branch=1
-  show_usage=1
-fi
+# 설정 파일에 없는 키는 표시(1)
+[ -f "$config_file" ] && source "$config_file"
+show_dir=${SHOW_DIRECTORY:-1}
+show_branch=${SHOW_BRANCH:-1}
+show_usage=${SHOW_USAGE:-1}
 
 # Cross-platform date helpers
 parse_iso_to_epoch() {
@@ -36,7 +31,7 @@ format_epoch() {
 }
 
 input=$(cat)
-current_dir_path=$(echo "$input" | grep -o '"current_dir":"[^"]*"' | sed 's/"current_dir":"//;s/"$//')
+current_dir_path=$(echo "$input" | jq -r '.workspace.current_dir // .current_dir // empty' 2>/dev/null)
 current_dir=$(basename "$current_dir_path")
 model_name=$(echo "$input" | jq -r '.model.display_name // empty' 2>/dev/null)
 app_version=$(echo "$input" | jq -r '.version // empty' 2>/dev/null)

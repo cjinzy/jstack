@@ -21,7 +21,7 @@ Codex CLI 를 다른 AI 의 독립 의견으로 호출한다. Codex 출력은 �
 | 그 외 텍스트 | 질문·계획 검토, 후속 대화 | [consult.md](consult.md) |
 | (인자 없음) | 변경 있으면 review/challenge/질문 중 선택, 없으면 질문 받기 | — |
 
-모드는 한 번에 하나. 정해진 모드의 파일만 읽고 그대로 따른다.
+모드는 한 번에 하나. 정해진 모드의 파일만 읽고 그대로 따른다. 하위 파일의 `${CLAUDE_SKILL_DIR}` 는 치환되지 않으므로 이 스킬의 base directory(로드 시 표시) 절대경로로 바꿔 실행한다.
 
 ## Step 1: 사전 점검
 
@@ -59,7 +59,7 @@ python3 -c 'import re,sys; sys.exit(0 if re.fullmatch(sys.argv[1], sys.stdin.rea
 JIN_ARG_END
 ```
 
-rev-parse 는 패턴 통과 후에만 실행한다. 자동 감지한 `BASE` 는 검증 불필요.
+줄바꿈이 든 값은 heredoc 을 만들기 전에 거부한다 — `JIN_ARG_END` 줄이 섞이면 heredoc 이 일찍 끝나 뒷줄이 셸 명령으로 실행된다. rev-parse 는 패턴 통과 후에만 실행한다. 자동 감지한 `BASE` 는 검증 불필요.
 
 ## Step 2: 모드 결정
 
@@ -82,14 +82,14 @@ rev-parse 는 패턴 통과 후에만 실행한다. 자동 감지한 `BASE` 는 
 - `--` 뒤 codex 명령을 실행하고, 540초 넘으면 끊는다 (macOS 에 GNU `timeout` 이 없어서 내장)
 - 자기 stdin 을 codex 로 넘긴다. `--boundary` 면 아래 파일시스템 경계 지시문을 앞에 붙인다
 - JSONL 이벤트를 사람이 읽는 transcript 로 `--log` 파일에 쓴다
-- stdout 에 상태 블록만 출력: `STATUS`(ok|timeout|failed|turn_failed|no_completion|empty|nested), `CODEX_EXIT`, `TOKENS`, `SESSION_ID`, turn 실패 시 `TURN_FAILED`, `--gate` 면 `GATE`, 원인 추정 시 `HINT`, 실패 시 `STDERR` 발췌, 명령을 못 찾으면 `ERROR`
+- stdout 에 상태 블록만 출력: `STATUS`(ok|timeout|failed|turn_failed|no_completion|empty|nested), `CODEX_EXIT`, `TOKENS`, `SESSION_ID`, turn 실패 시 `TURN_FAILED`, `--gate` 면 `GATE`, 원인 추정 시 `HINT`, 실패 시 `STDERR` 발췌, 명령을 못 찾거나 `--log` 디렉터리가 없으면 `ERROR` (후자는 codex 실행 전에 멈춤). JSON 출력이면 `ok` 는 Codex 답(agent_message 또는 `-o` 파일)이 있을 때만 — 생각(reasoning)만 있으면 `empty`
 
 규칙:
 - **사용자 텍스트는 셸 인자에 절대 넣지 않는다** (위 검증을 통과한 base·sha·모델·effort 만 예외). 프롬프트는 따옴표 붙은 heredoc (`<<'JIN_CODEX_END'`) 으로 stdin 에만 넣는다. 본문에 `JIN_CODEX_END` 단독 줄이 있으면 구분자를 바꾼다.
 - Bash 호출에 `timeout: 600000` 을 준다 (래퍼 540초보다 위 → 래퍼가 먼저 끊고 원인을 남김).
 - 결과 파일은 `mktemp -d` 디렉터리에 둔다: `$D/last.md` (Codex 최종 답, `-o`), `$D/transcript.log`. 출력이 길 수 있으니 Read 로 offset/limit 나눠 읽는다.
 - 샌드박스는 항상 read-only: `codex exec` 는 `-s read-only`, `exec review`·`exec resume` 은 `-s` 가 없어서 `-c 'sandbox_mode="read-only"'`.
-- 모델·effort 는 사용자 `~/.codex/config.toml` 을 따른다. 사용자가 지정하면 검증(위 패턴) 후 `-m "<model>"`, `-c 'model_reasoning_effort="<level>"'` 추가. `xhigh` 는 오래 멈추기 쉬워 타임아웃에 걸릴 수 있다 → 그때는 `high` 로 재시도 권유.
+- 모델·effort 는 사용자 `~/.codex/config.toml` 을 따른다. 사용자가 지정하면 검증(위 패턴) 후 `-m "<model>"` (최상위 `codex review` 엔 `-m` 이 없어 `-c 'model="<model>"'`), `-c 'model_reasoning_effort="<level>"'` 추가. `xhigh` 는 오래 멈추기 쉬워 타임아웃에 걸릴 수 있다 → 그때는 `high` 로 재시도 권유.
 
 ### 파일시스템 경계
 
@@ -122,14 +122,14 @@ Recommendation: <행동> because <가장 실행 가치 높은 지적을 다른 �
 "좋아서", "Codex 가 뭔가 찾아서" 같은 상투적 이유는 불합격. 자동 결정하지 말고 사용자가 고르게 한다.
 
 5. transcript 에 `SKILL.md`, `.claude/`, `~/.agents` 를 읽은 흔적(`[codex ran] cat .../SKILL.md` 등)이 있으면 "Codex 가 코드 대신 스킬 파일을 읽었을 수 있음 — 재시도 권장" 경고를 붙인다.
-6. 정리: `rm -rf "$D"` (프롬프트·diff 사본 제거).
+6. 정리: 실행 블록이 출력한 `D=<경로>` 의 절대경로로 `rm -rf "<경로>"` (Bash 호출 간 셸 변수는 유지되지 않음). 프롬프트·diff 사본 제거.
 
 ## 오류 처리
 
 | 신호 | 의미 / 대응 |
 |------|-------------|
 | `STATUS: nested` | Codex 세션 안에서 실행 중. 외부 Codex 호출 불가 → 중단 |
-| `STATUS: timeout` | 540초 초과. 범위를 줄이거나 effort 를 낮춰 재시도. 끈질기면 `~/.codex/logs/` 확인 |
+| `STATUS: timeout` | 540초 초과. 범위를 줄이거나 effort 를 낮춰 재시도. 끈질기면 `~/.codex/log/` 확인 |
 | `STATUS: failed` + `HINT: 인증` | `codex login` 재실행 안내 |
 | `STDERR` 에 `model ... not supported` / `404 ... does not exist` | 모델 설정 문제. `~/.codex/config.toml` 의 `model` 이나 `-m` 값을 고치라고 안내. 정지·통과로 보고하지 않음 |
 | `requires a newer version of Codex` | `codex update` 안내 |

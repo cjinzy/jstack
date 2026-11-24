@@ -141,6 +141,14 @@ class TestCleanStaleCache:
         """빈 캐시 디렉토리이면 0을 반환한다."""
         assert clean_stale_cache(tmp_path) == 0
 
+    def test_numeric_version_order(self, tmp_path: Path) -> None:
+        """6.3.10 > 6.3.9 (문자열 정렬이면 6.3.10 을 지운다). 비숫자 꼬리도 예외 없음."""
+        for name in ("6.3.9", "6.3.10", "6.3.3-rc1"):
+            (tmp_path / name).mkdir()
+
+        assert clean_stale_cache(tmp_path) == 2
+        assert [d.name for d in tmp_path.iterdir()] == ["6.3.10"]
+
 
 class TestInstallTimer:
     """install_timer() 테스트 스위트."""

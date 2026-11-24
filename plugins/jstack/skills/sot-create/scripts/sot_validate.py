@@ -57,8 +57,12 @@ INDEX_FILENAME = "Index.md"
 MANY_FACTS_HINT = 8
 
 FRONTMATTER_DELIMITER = "---"
-# `## ARC-002 — The gateway is the only public entry point`
-FACT_HEADING = re.compile(r"^##\s+([A-Z]{3}-\d{3})\s*[—-]\s*(\S.*)$")
+# `## ARC-002 — The gateway is the only public entry point` (em dash, en dash or hyphen)
+FACT_HEADING = re.compile(r"^##\s+([A-Z]{3}-\d{3})\s*[—–-]\s*(\S.*)$")
+CODE_FENCE = "```"
+# `verified_commit` goes to git as an argument; anything but a hex SHA could be read as an option.
+# ponytail: SHA-1 length only; widen to 64 for SHA-256 repos.
+COMMIT_SHA = re.compile(r"[0-9a-fA-F]{4,40}")
 MARKDOWN_LINK = re.compile(r"\]\(([^)]+)\)")
 OPEN_QUESTION = re.compile(r"TODO\(sot\):")
 
@@ -90,6 +94,8 @@ def split_list(value: str) -> list[str]:
 
 def changed_since(repo: Path, commit: str, paths: list[str]) -> list[str] | None:
     """Files under `paths` touched since `commit`. None when `commit` is not resolvable."""
+    if not COMMIT_SHA.fullmatch(commit):
+        return None
     result = subprocess.run(
         ["git", "-C", str(repo), "diff", "--name-only", f"{commit}..HEAD", "--", *paths],
         capture_output=True,
@@ -160,8 +166,13 @@ def _validate_doc(
         report.add("error", "BAD_STATUS", rel, f"status `{status}` not in {VALID_STATUSES}")
 
     fact_ids: list[str] = []
+    in_fence = False
     for line in text.splitlines():
-        match = FACT_HEADING.match(line)
+        # ponytail: ``` fences only; `~~~` fences still count their headings.
+        if line.lstrip().startswith(CODE_FENCE):
+            in_fence = not in_fence
+            continue
+        match = None if in_fence else FACT_HEADING.match(line)
         if not match:
             continue
         fact_id = match.group(1)

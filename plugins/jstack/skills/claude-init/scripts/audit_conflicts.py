@@ -58,7 +58,7 @@ KNOWN_CONFLICTS: list[dict] = [
         "plugins": ["i-have-adhd@i-have-adhd"],
         "min_plugins": 1,
         "setting": ("outputStyle", "Explanatory"),
-        # 키 제거 금지 — merge_settings 가 "없을 때만" Explanatory 를 다시 넣는다.
+        # 옛 init 이 기본값으로 넣은 Explanatory 대상 (지금 merge_settings 는 넣지 않는다).
         "fix_setting": ("outputStyle", "default"),
         "user_mcp": [],
     },

@@ -77,7 +77,6 @@ class TestCheckSettings:
             "permissions": {"defaultMode": "plan"},
             "enableAllProjectMcpServers": True,
             "statusLine": {"type": "command", "command": "bash ~/.claude/statusline-command.sh"},
-            "outputStyle": "Explanatory",
             "language": "korean",
             "skipDangerousModePermissionPrompt": True,
             "effortLevel": "high",
@@ -89,11 +88,27 @@ class TestCheckSettings:
         assert result["missing"] == []
 
     def test_missing_keys(self) -> None:
-        """일부 키가 없으면 missing에 포함되어야 한다."""
+        """필수 키가 없으면 missing에 포함되어야 한다."""
         settings = {"language": "korean"}
         result = check_settings(settings)
         assert result["complete"] is False
-        assert "effortLevel" in result["missing"]
+        assert "statusLine.command" in result["missing"]
+
+    def test_required_value_changed(self) -> None:
+        """필수 키는 값까지 비교 — 바뀐 값은 Step 4 가 되돌려야 한다. 다른 env 키는 무관."""
+        settings = {
+            "env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1", "MINE": "x"},
+            "statusLine": {"type": "command", "command": "mine.sh"},
+        }
+        assert check_settings(settings)["missing"] == ["statusLine.command"]
+
+    def test_preference_keys_ignored(self) -> None:
+        """개인 선호 키(없을 때만 넣는 키)를 비워 둬도 partial 이 아니다."""
+        settings = {
+            "env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"},
+            "statusLine": {"type": "command", "command": "bash ~/.claude/statusline-command.sh"},
+        }
+        assert check_settings(settings) == {"complete": True, "missing": []}
 
 
 class TestStaleSyncedFiles:
@@ -183,6 +198,14 @@ class TestCheckHooks:
             result = check_hooks({})
         assert result == {"installed": 2, "total": 2, "missing": []}
 
+    def test_reads_numerically_latest_version(self, tmp_path: Path) -> None:
+        """6.3.10 이 6.3.9 보다 최신 (문자열 정렬이면 옛 6.3.9 를 읽는다)."""
+        self._write_manifest(tmp_path, "6.3.9", {})
+        self._write_manifest(tmp_path, "6.3.10", {"SessionStart": [{}], "UserPromptSubmit": [{}]})
+        with patch("preflight.CLAUDE_DIR", tmp_path):
+            result = check_hooks({})
+        assert result["missing"] == []
+
     def test_legacy_location_not_counted(self, tmp_path: Path) -> None:
         """Claude Code 가 읽지 않는 .claude-plugin/hooks/hooks.json 은 설치로 보지 않는다."""
         legacy = tmp_path / "plugins" / "cache" / "jstack" / "jstack" / "4.0.2" / ".claude-plugin" / "hooks"
@@ -269,7 +292,7 @@ class TestDetermineRecommendation:
 
 
 class TestCheckMcpHealth:
-    """check_mcp_health(): jin 플러그인 MCP 미연결 = missing, 그 외 실패 = 정보."""
+    """check_mcp_health(): init 설치 플러그인 MCP 미연결 = missing, 그 외 실패 = 정보."""
 
     LIST = (
         "Checking MCP server health…\n\n"
