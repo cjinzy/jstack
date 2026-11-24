@@ -4,7 +4,7 @@
 
 Claude Code 플러그인입니다. 계획, 스펙, 프로젝트 문서화(SoT), 리뷰, 커밋을 돕는 스킬 13개와 hook 2개, 사용량 statusline 을 담았습니다.
 
-> 버전 `6.4.1` · 라이선스 MIT
+> 버전 `6.4.2` · 라이선스 MIT
 
 ## 설치
 
@@ -117,6 +117,8 @@ ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL 
 - push 전에 써 보기: `claude --plugin-dir <저장소>/plugins/mod-statusline` (셸 statusline 과 함께 보입니다)
 
 ## 개발
+
+테스트 파일은 `.gitignore` 로 로컬에만 둡니다 (클론에 없음).
 
 ```bash
 uv sync                                   # 의존성

@@ -40,7 +40,6 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/project_analyzer.py" --markdown <path>   # 
 ## 관련 파일
 
 - `${CLAUDE_SKILL_DIR}/scripts/project_analyzer.py` — 분석 스크립트 (실행 전용)
-- `${CLAUDE_SKILL_DIR}/scripts/test_project_analyzer.py` — 테스트 (`cd "${CLAUDE_SKILL_DIR}/scripts" && python3 -m pytest -q`)
 
 ## 주의사항
 

@@ -294,5 +294,4 @@ JSON on stdout, exit 1 on errors. Fix every `error` before reporting the SoT as 
 - `${CLAUDE_SKILL_DIR}/templates/sot-maintenance.md` — the `RUL-9xx` update protocol, copied in at Step 2
 - `${CLAUDE_SKILL_DIR}/scripts/sot_index.py` — renders `Index.md` from frontmatter (`--check` to verify only)
 - `${CLAUDE_SKILL_DIR}/scripts/sot_validate.py` — docset validator (structure, addressability, index, drift); JSON on stdout
-- `${CLAUDE_SKILL_DIR}/scripts/test_sot_index.py`, `test_sot_validate.py` — tests (`cd "${CLAUDE_SKILL_DIR}/scripts" && python3 -m pytest -q`)
 - `${CLAUDE_SKILL_DIR}/../deepinit/scripts/project_analyzer.py` — repo probe used in Step 1

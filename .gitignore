@@ -27,6 +27,10 @@ __pycache__/
 
 # Tests (local only)
 **/tests/*
+test_*.py
+test_*.sh
+*.test.ts
+*.test.tsx
 
 # Runtime data
 .claude/skills/omc-learned/

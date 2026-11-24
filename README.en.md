@@ -4,7 +4,7 @@
 
 A Claude Code plugin with 13 skills for planning, specs, project documentation (SoT), review and commits, plus 2 hooks and a usage statusline.
 
-> Version `6.4.1` · License MIT
+> Version `6.4.2` · License MIT
 
 ## Install
 
@@ -117,6 +117,8 @@ ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL 
 - Try it before pushing: `claude --plugin-dir <repo>/plugins/mod-statusline` (shows alongside the shell statusline)
 
 ## Development
+
+Test files are local-only via `.gitignore` (not in the clone).
 
 ```bash
 uv sync                                   # dependencies
