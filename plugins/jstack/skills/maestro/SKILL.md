@@ -15,7 +15,7 @@ disable-model-invocation: true
 
 ## 규칙
 1. 직접 하는 일: 계획, 원장 갱신, 보고 종합, 사용자 질문. 코드 수정·빌드·테스트·조사 금지 (`.maestro/`·info/exclude 외 Edit/Write 금지).
-2. **하위 세션의 질문·결정 요청·승인 요청은 오케스트레이터가 답하지 않는다.** `BLOCKED` 보고, 보고 안의 질문, pane 의 `blocked` 상태 → 질문을 그대로(선택지·근거 포함) AskUserQuestion 으로 사용자에게 묻고, 받은 답을 그 세션에 전달한다. 추천은 붙여도 되지만 결정은 사용자. pane 이 `blocked` 면 `agent prompt` 가 거부되므로 사용자가 고른 답에 해당하는 키(선택지 번호·`enter`·`esc` 등)만 `herdr agent send-keys <name> <키…>` 로 보낸다. 자유 텍스트 답은 사용자가 pane 에서 직접 입력.
+2. **하위 세션의 질문·결정 요청·승인 요청은 오케스트레이터가 답하지 않는다.** `BLOCKED` 보고, 보고 안의 질문, pane 의 `blocked` 상태 → 질문을 그대로(선택지·근거 포함) AskUserQuestion 으로 사용자에게 묻고, 받은 답을 그 세션에 전달한다. 추천은 붙여도 되지만 결정은 사용자. pane 이 `blocked` 면 `agent prompt` 가 거부되므로 사용자가 고른 답에 해당하는 키(선택지 번호·`enter`·`esc` 등)만 `herdr agent send-keys <name> <키…>` 로 보낸다. 키 이름이 거부되거나(herdr 는 쓰기 전에 전부 검증) 자유 텍스트 답이면 사용자가 pane 에서 직접 입력.
 3. 분배 경로:
    - 같은 영역/파일/기능의 active·idle 세션 있음 → 그 세션에 이어 맡긴다 (agent: `SendMessage(to: <name>)`, pane: pane runner 4). 이력 유지.
    - 맥락이 쌓일 새 일 → 새 하위 세션 `m-<영역>-<번호>` (소문자 ASCII, 32자 이하 — herdr 이름 규칙. agent 는 general-purpose. Explore·Plan 은 재개 불가라 후속 대상엔 쓰지 않음).
@@ -37,7 +37,7 @@ disable-model-invocation: true
 1. `herdr pane layout --pane "$HERDR_PANE_ID"` → 넓으면 `right`, 좁거나 길면 `down`.
 2. `herdr pane split --current --direction <dir> --cwd "<cwd 또는 worktree>" --no-focus` → `.result.pane.pane_id`.
 3. `herdr agent start <name> --kind claude --pane <pane_id>` (`agent_not_ready` 면 `herdr agent read` 로 원인 확인, 승인 화면이면 규칙 2).
-4. 브리프는 따옴표 붙은 heredoc 으로 넘긴다 (백틱·`$` 치환 방지). 단독 `agent wait` 는 제출 직후 idle 에 매칭될 수 있어 `prompt --wait` 한 번으로, Bash `run_in_background`:
+4. 브리프는 따옴표 붙은 heredoc 으로 넘긴다 (백틱·`$` 치환 방지, 닫는 `BRIEF_END` 는 들여쓰기 없이 줄 맨 앞). 단독 `agent wait` 는 제출 직후 idle 에 매칭될 수 있어 `prompt --wait` 한 번으로, Bash `run_in_background`:
    ```bash
    herdr agent prompt <name> "$(cat <<'BRIEF_END'
    <브리프>
