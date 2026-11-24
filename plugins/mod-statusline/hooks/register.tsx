@@ -155,7 +155,7 @@ export const register: Register = on => {
     // now 0 = 아직 아무 이벤트도 못 받음 → 빈 값(7D: --% 등)을 잠깐 그리지 않는다.
     if (e.props.hasSurvey || s.now === 0) return next(e)
     // 턴 시간은 엔진이 작업 중이라고 할 때만 — 종료 이벤트를 놓쳐도 남지 않게.
-    const rows = buildRows(e.props.isWorking ? s : { ...s, turnStartedAt: undefined })
+    const rows = buildRows(e.props.isWorking ? s : { ...s, turnStartedAt: undefined }, e.props.bodyColumns)
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">

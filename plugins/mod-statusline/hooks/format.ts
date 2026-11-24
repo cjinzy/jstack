@@ -208,12 +208,33 @@ function usageSegments(s: Snapshot): Segment[] {
   return out
 }
 
+const SEP_CELLS = 3 // register.tsx 의 ' │ '
+// 2칸으로 그려지는 글자: 동아시아 전각 + 그림 문자(⚙·⏱·⚠·⏳ — 터미널이 emoji 로 그림)
+const WIDE = /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]|\p{Extended_Pictographic}/u
+
+function cells(text: string): number {
+  let n = 0
+  for (const ch of text) n += WIDE.test(ch) ? 2 : 1
+  return n
+}
+
+function rowCells(row: Segment[]): number {
+  return row.reduce((n, seg) => n + seg.reduce((m, p) => m + cells(p.text), 0), 0) + SEP_CELLS * Math.max(0, row.length - 1)
+}
+
+// 턴 밖에서도 타이머 몫을 남긴다 — 턴 시작·끝마다 1↔2줄로 바뀌지 않게.
+// ponytail: m:ss 몫만 — 10분 넘는 턴·⚙ 등장은 경계 폭에서 줄 수가 바뀔 수 있다.
+const TIMER_CELLS = SEP_CELLS + cells('⏱ 0:00')
+
 /**
- * band 두 줄 (셸 statusline 순서 + mod 칸):
+ * band (셸 statusline 순서 + mod 칸). columns 에 들어가면 한 줄 — 작업 칸(⚙·⏱)은 끝으로,
+ * 생겨도 앞 칸이 밀리지 않게:
+ *   dir │ ⎇ branch ISSUE ●n │ model │ effort │ vX │ ctx │ cache │ 5h │ 7D │ Model │ 경고 │ $비용 │ ⚙ n │ ⏱ 0:07
+ * 아니면 두 줄:
  *   dir │ ⎇ branch ISSUE ●n │ model │ effort │ vX │ ⚙ n │ ⏱ 0:07
  *   ctx: N% │ cache: N │ 5h: │ 7D: │ Model: │ 경고 │ $비용
  */
-export function buildRows(s: Snapshot): Segment[][] {
+export function buildRows(s: Snapshot, columns = 0): Segment[][] {
   const top: Segment[] = []
   if (s.dir && s.show.dir) top.push([{ text: s.dir, color: C.dir }])
   if (s.branch && s.show.branch) {
@@ -227,9 +248,10 @@ export function buildRows(s: Snapshot): Segment[][] {
   if (s.model) top.push([{ text: s.model, color: C.model }])
   if (s.effort) top.push([{ text: s.effort, color: C.yellow }])
   if (s.version) top.push([{ text: `v${s.version}`, color: C.version }])
+  const work: Segment[] = []
   // 아이콘 뒤 공백 필수: 터미널이 ⚙·⏱ 을 2칸 emoji 로 그려 바로 뒤 글자를 덮는다.
-  if (s.agents > 0) top.push([{ text: `⚙ ${s.agents}` }])
-  if (s.turnStartedAt !== undefined) top.push([{ text: `⏱ ${fmtElapsed(s.now - s.turnStartedAt)}` }])
+  if (s.agents > 0) work.push([{ text: `⚙ ${s.agents}` }])
+  if (s.turnStartedAt !== undefined) work.push([{ text: `⏱ ${fmtElapsed(s.now - s.turnStartedAt)}` }])
 
   const bottom: Segment[] = []
   if (s.ctx !== undefined) {
@@ -241,7 +263,10 @@ export function buildRows(s: Snapshot): Segment[][] {
   // 구독이면 rateLimits 가 있고 비용은 청구되지 않는다 → API 키 사용자에게만.
   if (s.limits.length === 0 && s.usd !== undefined) bottom.push([{ text: `$${s.usd.toFixed(2)}` }])
 
-  return [top, bottom].filter(r => r.length > 0)
+  const one = [...top, ...bottom, ...work]
+  const reserve = s.turnStartedAt === undefined ? TIMER_CELLS : 0
+  if (rowCells(one) + reserve <= columns) return [one]
+  return [[...top, ...work], bottom].filter(r => r.length > 0)
 }
 
 /** 지금 넘은 임계치 (키 → toast 문구). 키가 사라지면 다시 넘을 때 또 알린다. */

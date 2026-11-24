@@ -1,6 +1,6 @@
 {
   "name": "mod-statusline",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Status band above the prompt: rate limits with pacing, context, location, model, background agents, turn timer",
   "author": {
     "name": "jin",

@@ -109,6 +109,7 @@ jstack │ ⎇ jin/mole-123 MOLE-123 ●3 │ Opus 5.5 │ xhigh │ v2.1.331 �
 ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL │ Fable: 18% →1D/14H
 ```
 
+- Collapses to one row when it fits the terminal width (`⚙` and `⏱` move to the end).
 - Shows the shell statusline's items, formats and 10-step colors as they are, and follows `SHOW_*` in `statusline-config.txt`.
 - Adds: 5h, the branch's Linear issue ID, uncommitted file count `●n`, running background agents `⚙n`, elapsed time of the running turn `⏱`, cost (only off a subscription)
 - 5h and 7D are live, updated on every API response (the timer cache when absent). Per-model 7D, `STALE` and warnings (`⚠`, `⏳ RATE`) come from the timer cache.
