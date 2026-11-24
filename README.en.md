@@ -4,7 +4,7 @@
 
 A Claude Code plugin with 13 skills for planning, specs, project documentation (SoT), review and commits, plus 2 hooks and a usage statusline.
 
-> Version `6.3.3` · License MIT
+> Version `6.4.0` · License MIT
 
 ## Install
 
@@ -54,7 +54,7 @@ Most skills work as-is in any project. These three assume the author's environme
 Run `/jstack:claude-init`; it asks before each step. Details: [docs/skills.en.md#claude-init](docs/skills.en.md#claude-init)
 
 1. Checks what is already installed → runs only the missing steps
-2. Asks consent to overwrite files and which optional plugins to install
+2. Asks consent to overwrite files and which optional plugins to install (picking `mod-statusline` uses the [mod](#mods-optional) instead of the shell statusline; the usage timer stays)
 3. Installs plugins — 3 required (`context-mode`, `serena`, `i-have-adhd`) + the optional ones you picked
 4. Clones this repo to `~/.claude/.jin-claude-repo/` → copies the statusline, `~/.claude/CLAUDE.md` and its include files, installs the usage timer (macOS launchd / Linux systemd)
 5. Merges `~/.claude/settings.json`
@@ -65,7 +65,7 @@ Keys written to `settings.json`:
 
 | Applied | Keys |
 |---|---|
-| Always overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` |
+| Overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` (skipped when `mod-statusline` is picked and installed; init's own value is removed, a custom one kept) |
 | Only if missing | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
 
 `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` connect project `.mcp.json` servers without approval and skip the bypass-permissions mode warning. Set them to `false` to opt out — init keeps your value.
@@ -92,6 +92,29 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 
 Usage comes from `fetch-claude-usage`. It reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 30 seconds in `~/.claude/.usage-cache.json`. Python standard library only. Needs a subscription account (Pro/Max/Team/Enterprise).
 
+## Mods (optional)
+
+The same marketplace carries mods as separate plugins. Install only what you want (pick them among `claude-init`'s optional plugins, or directly):
+
+```
+/plugin install mod-statusline@jstack
+```
+
+### `mod-statusline`
+
+A band above the prompt that replaces the shell statusline above. No jq or shell runs; it draws in the terminal, the desktop app and VS Code.
+
+```
+jstack · jin/mole-123 · MOLE-123 ●3 │ Opus 5.5 · high │ ⚙2 │ ⏱3:12
+ctx 72% │ 5h 42% ↻1:20 │ 7D 63% ↻2d5h │ Fable 7D 30%
+```
+
+- Line 1: directory, branch, the branch's Linear issue ID, uncommitted file count; model and effort; running background agents; elapsed time of the running turn
+- Line 2: context; 5h and 7D usage with time to reset (updated on every API response); per-model weekly limit (only when the usage timer's cache is under 30 minutes old); cost (only off a subscription)
+- Colors: context yellow at 70%, red at 85%; a limit turns yellow when usage outpaces the window 1.2×, red at 90%
+- Context 85%, a limit at 90%, and outpacing a limit each raise one notice when crossed.
+- Picking and installing this mod via `claude-init` stops writing the shell `statusLine` and removes the one it wrote earlier (a statusLine you changed is kept). Needs a Claude Code version with mod support.
+
 ## Development
 
 ```bash
@@ -100,6 +123,7 @@ uv run ruff check src/ tests/             # lint
 uv run pytest tests/                      # statusline and usage tests
 for d in plugins/jstack/skills/*/scripts; do (cd "$d" && uv run pytest -q); done   # skill script tests
 claude plugin validate .                  # validate marketplace and plugin
+claude plugin test plugins/mod-statusline # mod tests
 ```
 
 ## Layout
@@ -111,6 +135,7 @@ plugins/jstack/
   skills/<skill>/SKILL.md         skills (with scripts/, templates/)
   hooks/                          SessionStart and UserPromptSubmit hooks
   scripts/                        statusline, timer installer
+plugins/mod-<name>/               optional mods (hooks/register.tsx)
 src/jin_claude/                   fetch-claude-usage (usage CLI)
 docs/skills.en.md                 how each skill works
 ```

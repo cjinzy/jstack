@@ -8,6 +8,7 @@ from pathlib import Path
 
 import report_changes
 from merge_settings import DEFAULT_SETTINGS, REQUIRED_SETTINGS, deep_merge, merge_settings
+from preflight import SELECTION_FILE
 
 
 class TestDeepMerge(unittest.TestCase):
@@ -242,6 +243,53 @@ def test_already_merged_but_baseline_differs(tmp_path: Path) -> None:
     entry = report_changes.load_report()[str(path)]
     assert entry["status"] == report_changes.CHANGED
     assert entry["diff"]["added"] == {"enabledPlugins": {"x@y": True}}
+
+
+STATUSLINE_MOD = "mod-statusline@jstack"
+MINE = {"type": "command", "command": "mine.sh"}
+
+
+def _with_mod(
+    path: Path, statusline: dict | None, *, selected: bool = True, enabled: bool = True
+) -> None:
+    """mod 선택(selection 파일)·설치(enabledPlugins)와 기존 statusLine 기록."""
+    settings: dict = {"enabledPlugins": {STATUSLINE_MOD: True}} if enabled else {}
+    if statusline:
+        settings["statusLine"] = statusline
+    path.write_text(json.dumps(settings))
+    optional = [STATUSLINE_MOD] if selected else []
+    (path.parent / SELECTION_FILE).write_text(json.dumps({"optional": optional}))
+
+
+def test_mod_removes_our_statusline(tmp_path: Path) -> None:
+    """mod 가 대체 → 우리 statusLine 제거, 변경 요약에 삭제로 보고."""
+    path = tmp_path / "settings.json"
+    ours = REQUIRED_SETTINGS["statusLine"]
+    _with_mod(path, ours)
+    assert "statusLine" not in merge_settings(path)
+    assert report_changes.load_report()[str(path)]["diff"]["removed"] == {"statusLine": ours}
+
+
+def test_mod_keeps_custom_statusline(tmp_path: Path) -> None:
+    """사용자 커스텀 statusLine 은 mod 선택 시에도 보존."""
+    path = tmp_path / "settings.json"
+    _with_mod(path, MINE)
+    assert merge_settings(path)["statusLine"] == MINE
+
+
+def test_mod_deselected_forces_statusline(tmp_path: Path) -> None:
+    """선택 해제 → 지금처럼 강제 (설치돼 남아 있어도)."""
+    path = tmp_path / "settings.json"
+    _with_mod(path, MINE, selected=False)
+    assert merge_settings(path)["statusLine"] == REQUIRED_SETTINGS["statusLine"]
+
+
+def test_mod_not_installed_forces_statusline(tmp_path: Path) -> None:
+    """선택했지만 설치 실패(enabledPlugins 에 없음) → statusline 유지되게 강제."""
+    path = tmp_path / "settings.json"
+    _with_mod(path, None, enabled=False)
+    assert merge_settings(path)["statusLine"] == REQUIRED_SETTINGS["statusLine"]
+
 
 if __name__ == "__main__":
     unittest.main()

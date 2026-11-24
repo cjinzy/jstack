@@ -4,7 +4,7 @@
 
 Claude Code 플러그인입니다. 계획, 스펙, 프로젝트 문서화(SoT), 리뷰, 커밋을 돕는 스킬 13개와 hook 2개, 사용량 statusline 을 담았습니다.
 
-> 버전 `6.3.3` · 라이선스 MIT
+> 버전 `6.4.0` · 라이선스 MIT
 
 ## 설치
 
@@ -54,7 +54,7 @@ claude plugin install jstack@jstack
 `/jstack:claude-init` 을 실행하면 단계마다 확인을 받으며 진행합니다. 상세: [docs/skills.md#claude-init](docs/skills.md#claude-init)
 
 1. 현재 설치 상태 점검 → 필요한 단계만 실행
-2. 덮어쓰기 동의 + 선택 플러그인 고르기
+2. 덮어쓰기 동의 + 선택 플러그인 고르기 (`mod-statusline` 을 고르면 셸 statusline 대신 [mod](#mods-선택-설치) 를 씁니다. 사용량 타이머는 유지)
 3. 플러그인 설치 — 필수 3개(`context-mode`, `serena`, `i-have-adhd`) + 고른 선택 플러그인
 4. 이 저장소를 `~/.claude/.jin-claude-repo/` 에 clone → statusline, `~/.claude/CLAUDE.md` 와 보조 문서 복사, 사용량 타이머 설치 (macOS launchd / Linux systemd)
 5. `~/.claude/settings.json` 병합
@@ -65,7 +65,7 @@ claude plugin install jstack@jstack
 
 | 적용 | 키 |
 |---|---|
-| 항상 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` |
+| 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` (`mod-statusline` 을 고르고 설치되면 넣지 않고, init 이 넣은 값이면 제거 — 직접 바꾼 값은 유지) |
 | 없을 때만 | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
 
 `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뜁니다. 원치 않으면 `false` 로 두세요 — init 이 유지합니다.
@@ -92,6 +92,29 @@ claude plugin install jstack@jstack
 
 사용량은 `fetch-claude-usage` 가 가져옵니다. Claude Code 로그인 토큰(`~/.claude/.credentials.json` 또는 macOS Keychain)으로 `https://api.anthropic.com/api/oauth/usage` 를 호출하고, 결과를 30초 동안 `~/.claude/.usage-cache.json` 에 캐시합니다. Python 표준 라이브러리만 씁니다. 구독(Pro/Max/Team/Enterprise) 계정이 필요합니다.
 
+## Mods (선택 설치)
+
+같은 마켓플레이스에 mod 를 따로 담았습니다. 필요한 것만 설치합니다 (`claude-init` 의 선택 플러그인에서 고르거나 직접):
+
+```
+/plugin install mod-statusline@jstack
+```
+
+### `mod-statusline`
+
+위 셸 statusline 을 대체하는 프롬프트 위 band 입니다. jq·셸 실행 없이 터미널·desktop·VS Code 에 그립니다.
+
+```
+jstack · jin/mole-123 · MOLE-123 ●3 │ Opus 5.5 · high │ ⚙2 │ ⏱3:12
+ctx 72% │ 5h 42% ↻1:20 │ 7D 63% ↻2d5h │ Fable 7D 30%
+```
+
+- 1줄: 디렉토리·브랜치·브랜치의 Linear 이슈 ID·미커밋 파일 수, 모델·effort, 실행 중인 백그라운드 에이전트 수, 진행 중인 턴 시간
+- 2줄: 컨텍스트, 5h·7D 사용률과 리셋까지 남은 시간(API 응답마다 갱신), 모델별 주간 한도(사용량 타이머 캐시가 30분 안일 때만), 비용(구독이 아닐 때만)
+- 색: 컨텍스트 70% 노랑·85% 빨강, 한도는 사용 속도가 창 경과보다 1.2배 빠르면 노랑·90% 빨강
+- 컨텍스트 85%, 한도 90%, 사용 속도 초과는 넘는 순간 한 번 알립니다.
+- `claude-init` 에서 이 mod 를 고르고 설치되면 셸 `statusLine` 설정을 넣지 않고, 전에 넣은 것도 지웁니다 (직접 바꾼 statusLine 은 유지). mod 를 지원하는 Claude Code 버전이 필요합니다.
+
 ## 개발
 
 ```bash
@@ -100,6 +123,7 @@ uv run ruff check src/ tests/             # 린트
 uv run pytest tests/                      # statusline·사용량 테스트
 for d in plugins/jstack/skills/*/scripts; do (cd "$d" && uv run pytest -q); done   # 스킬 스크립트 테스트
 claude plugin validate .                  # 마켓플레이스·플러그인 검증
+claude plugin test plugins/mod-statusline # mod 테스트
 ```
 
 ## 구조
@@ -111,6 +135,7 @@ plugins/jstack/
   skills/<스킬>/SKILL.md          스킬 (scripts/·templates/ 포함)
   hooks/                          SessionStart·UserPromptSubmit hook
   scripts/                        statusline, 타이머 설치
+plugins/mod-<이름>/               선택 설치 mod (hooks/register.tsx)
 src/jin_claude/                   fetch-claude-usage (사용량 CLI)
 docs/skills.md                    스킬별 동작 설명
 ```

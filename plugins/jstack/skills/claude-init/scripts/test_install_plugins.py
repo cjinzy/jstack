@@ -141,6 +141,19 @@ def test_rerun_uses_saved_selection(mock_run: MagicMock, tmp_path: Path) -> None
     assert _installs(mock_run) == CORE_PLUGINS
 
 
+@patch("install_plugins.subprocess.run", side_effect=_ok)
+def test_statusline_mod_reuses_jstack_marketplace(mock_run: MagicMock, tmp_path: Path) -> None:
+    """jstack 사용자는 marketplace 가 이미 있음 → mod 만 install, 재 add 없음 (autoUpdate 보존)."""
+    mod = "mod-statusline@jstack"
+    assert EXPECTED_MARKETPLACES["jstack"] == "cjinzy/jstack"
+    settings = _full_settings()
+    settings["enabledPlugins"].pop(mod, None)
+    path = tmp_path / "settings.json"
+    _write(path, settings)
+    install(path, select=[mod])
+    assert [c.args[0] for c in mock_run.call_args_list] == [["claude", "plugin", "install", mod]]
+
+
 def test_unknown_selection_rejected(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     _write(path, {})

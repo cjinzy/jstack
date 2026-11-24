@@ -34,7 +34,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 7. 이전 대비 변경점·백업 경로·되돌리는 법을 보여주고 `onboard` 를 실행한다
 
 **결과물**: `~/.claude/CLAUDE.md`·보조 문서·`statusline-command.sh`·`settings.json` 갱신(바뀐 파일은 `<이름>_backup_<YYYYMMDD>.<확장자>` 로 백업), `~/.claude/.jin-claude-repo/`·`~/.claude/.venv/`·사용량 타이머(launchd/systemd)·`~/.claude/.jin-claude-plugins.json` 생성, 플러그인 설치
-**주의**: 팀 필수 키(`statusLine`·`env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`)는 기존 값을 덮어쓴다. `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 없을 때만 `true` 로 넣는다 — 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뛴다. 선택 해제한 플러그인은 제거하지 않는다. 타이머가 사라지면 세션 시작 hook 이 init 때 고른 주기(`~/.claude/.jin-claude-usage-interval`, 없으면 5분)로 다시 등록한다.
+**주의**: 팀 필수 키(`statusLine`·`env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`)는 기존 값을 덮어쓴다. 단, `mod-statusline` 을 고르고 설치되면 `statusLine` 은 넣지 않고 init 이 넣은 값만 제거한다. `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 없을 때만 `true` 로 넣는다 — 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뛴다. 선택 해제한 플러그인은 제거하지 않는다. 타이머가 사라지면 세션 시작 hook 이 init 때 고른 주기(`~/.claude/.jin-claude-usage-interval`, 없으면 5분)로 다시 등록한다.
 
 <a name="onboard"></a>
 

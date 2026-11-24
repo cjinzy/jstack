@@ -34,7 +34,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 7. Shows what changed, backup paths and how to roll back, then runs `onboard`
 
 **Output**: Updates `~/.claude/CLAUDE.md`, its include docs, `statusline-command.sh` and `settings.json` (changed files backed up as `<name>_backup_<YYYYMMDD>.<ext>`); creates `~/.claude/.jin-claude-repo/`, `~/.claude/.venv/`, a launchd/systemd usage timer and `~/.claude/.jin-claude-plugins.json`; installs plugins
-**Notes**: Team-required keys (`statusLine`, `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) overwrite your values. `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` are set to `true` only if absent — this connects project `.mcp.json` servers without approval and skips the bypass-permissions mode warning. Deselected plugins are not uninstalled. If the timer disappears, the session-start hook re-registers it with the interval chosen at init (`~/.claude/.jin-claude-usage-interval`, 5 minutes if absent).
+**Notes**: Team-required keys (`statusLine`, `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) overwrite your values. Exception: with `mod-statusline` picked and installed, `statusLine` is not written and only init's own value is removed. `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` are set to `true` only if absent — this connects project `.mcp.json` servers without approval and skips the bypass-permissions mode warning. Deselected plugins are not uninstalled. If the timer disappears, the session-start hook re-registers it with the interval chosen at init (`~/.claude/.jin-claude-usage-interval`, 5 minutes if absent).
 
 <a name="onboard"></a>
 

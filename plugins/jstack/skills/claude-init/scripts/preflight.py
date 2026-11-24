@@ -12,7 +12,12 @@ import sys
 import traceback
 from pathlib import Path
 
-from merge_settings import REQUIRED_SETTINGS  # 설정 단일 출처
+from merge_settings import (  # 설정 단일 출처
+    STATUSLINE_KEY,
+    STATUSLINE_MOD,
+    is_our_statusline,
+    required_settings,
+)
 from sync_repo import SYNC_FILES, cached_versions  # Step 3 동기화 대상·캐시 버전 정렬 단일 출처
 
 CLAUDE_DIR = Path.home() / ".claude"
@@ -39,6 +44,7 @@ OPTIONAL_PLUGINS: dict[str, str] = {
     "browser-use@claude-plugins-official": "실제 Chrome 제어 (자동화·스크린샷)",
     "html-plan@claude-community": "구현 계획을 인터랙티브 HTML 한 장으로",
     "typesafe@typesafe-ai": "TypeSafe System One API 스킬",
+    STATUSLINE_MOD: "statusline mod — 사용 한도·컨텍스트·위치·모델을 프롬프트 위에 표시 (셸 statusline 대체)",
 }
 EXPECTED_PLUGINS = CORE_PLUGINS + list(OPTIONAL_PLUGINS)
 # marketplace 이름 → GitHub 저장소. EXPECTED_PLUGINS 가 필요로 하는 것만 (test 가 정합성 검사).
@@ -50,6 +56,7 @@ EXPECTED_MARKETPLACES: dict[str, str] = {
     "claude-community": "anthropics/claude-plugins-community",
     "i-have-adhd": "ayghri/i-have-adhd",
     "typesafe-ai": "typesafe-ai/skills",
+    "jstack": "cjinzy/jstack",
 }
 # 사용자 선택 저장 (~/.claude 기준). 없으면 선택 플러그인 전부 = 선택 기능 이전 init 과 동일.
 SELECTION_FILE = ".jin-claude-plugins.json"
@@ -148,25 +155,29 @@ def stale_synced_files() -> list[str]:
     return stale
 
 
-def check_settings(settings: dict) -> dict:
+def check_settings(settings: dict, plugins: list[str] | None = None) -> dict:
     """팀 필수 키(Step 4 가 덮어쓰는 키)가 같은 값인지 비교한다.
 
     개인 선호 키(DEFAULT_SETTINGS)는 없을 때만 넣는 키라 보지 않는다 — 비워 둔 사용자가 영구 partial 이 되지 않게.
 
     Args:
         settings: settings.json 딕셔너리.
+        plugins: 필수 + 선택 플러그인. None 이면 저장된 선택 (mod-statusline 은 statusLine 제외).
 
     Returns:
         complete 여부와 missing(없거나 값이 다른) 키 목록.
     """
     missing = []
-    for key, value in REQUIRED_SETTINGS.items():
+    required = required_settings(settings, selected_plugins() if plugins is None else plugins)
+    for key, value in required.items():
         current = settings.get(key)
         if isinstance(value, dict):
             current = current if isinstance(current, dict) else {}
             missing += [f"{key}.{sub}" for sub, v in value.items() if current.get(sub) != v]
         elif current != value:
             missing.append(key)
+    if STATUSLINE_KEY not in required and is_our_statusline(settings):
+        missing.append(STATUSLINE_KEY)  # mod 대체 중 → Step 4 가 제거
     return {"complete": len(missing) == 0, "missing": missing}
 
 
@@ -347,7 +358,7 @@ def run_preflight() -> dict:
     report["statusline"] = STATUSLINE_FILE not in stale
     # CLAUDE.md + @include 보조 문서
     report["claude_md"] = {"missing": [name for name in stale if name != STATUSLINE_FILE]}
-    report["settings"] = check_settings(settings)
+    report["settings"] = check_settings(settings, plugins)
     report["venv"] = check_venv()
     report["timer"] = check_timer()
     report["hooks"] = check_hooks(settings)
