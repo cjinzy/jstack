@@ -105,15 +105,16 @@ The same marketplace carries mods as separate plugins. Install only what you wan
 A band above the prompt that replaces the shell statusline above. No jq or shell runs; it draws in the terminal, the desktop app and VS Code.
 
 ```
-jstack · jin/mole-123 · MOLE-123 ●3 │ Opus 5.5 · high │ ⚙2 │ ⏱3:12
-ctx 72% │ 5h 42% ↻1:20 │ 7D 63% ↻2d5h │ Fable 7D 30%
+jstack │ ⎇ jin/mole-123 MOLE-123 ●3 │ Opus 5.5 │ xhigh │ v2.1.331 │ ⚙2 │ ⏱3:12
+ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL │ Fable: 18% →1D/14H
 ```
 
-- Line 1: directory, branch, the branch's Linear issue ID, uncommitted file count; model and effort; running background agents; elapsed time of the running turn
-- Line 2: context; 5h and 7D usage with time to reset (updated on every API response); per-model weekly limit (only when the usage timer's cache is under 30 minutes old); cost (only off a subscription)
-- Colors: context yellow at 70%, red at 85%; a limit turns yellow when usage outpaces the window 1.2×, red at 90%
-- Context 85%, a limit at 90%, and outpacing a limit each raise one notice when crossed.
+- Shows the shell statusline's items, formats and 10-step colors as they are, and follows `SHOW_*` in `statusline-config.txt`.
+- Adds: 5h, the branch's Linear issue ID, uncommitted file count `●n`, running background agents `⚙n`, elapsed time of the running turn `⏱`, cost (only off a subscription)
+- 5h and 7D are live, updated on every API response (the timer cache when absent). Per-model 7D, `STALE` and warnings (`⚠ TOKEN?`, `⏳ RATE`) come from the timer cache.
+- Context 85%, a limit at 90%, and outpacing a limit (HOT) each raise one notice when crossed.
 - Picking and installing this mod via `claude-init` stops writing the shell `statusLine` and removes the one it wrote earlier (a statusLine you changed is kept). Needs a Claude Code version with mod support.
+- Try it before pushing: `claude --plugin-dir <repo>/plugins/mod-statusline` (shows alongside the shell statusline)
 
 ## Development
 

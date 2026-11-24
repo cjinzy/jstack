@@ -38,3 +38,8 @@ push 는 사용자. 세션에 즉시 로드하지 않음.
 
 ## 실검증
 `claude -p … --plugin-dir plugins/mod-statusline --debug-file` — session.start·turn.start·session.measure·classic.Stop·turn.complete 실행, 실패·skip 0. `ui.render` 는 `-p` 에서 안 그려져 테스트 키트로만 확인.
+
+## 개정: 셸 statusline 항목 전부 (사용자 요청)
+셸 statusline 이 더 낫다는 피드백 → 같은 항목·포맷·색으로. 추가: cache 토큰(`turn.step` 결과 usage), 버전(`$.session.version()`), pacing 라벨 CHILL/PACE/HOT, 실시간 7D 없을 때 캐시 7D, `STALE`, `⚠ TOKEN?`·`⏳ RATE`, 10단계 색(hex), `SHOW_*`.
+effort: mod 의 `$.env`·자식 프로세스엔 `CLAUDE_EFFORT` 가 없음(실험). 시작 시 settings `modelSettings[모델].effortLevel` → `effortLevel`, 요청마다 `turn.step` 의 실제 값.
+빼먹은 것: last-good 7D 폴백(실시간 7D 가 대신함).

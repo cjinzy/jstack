@@ -1,5 +1,7 @@
 // 순수 계산·포맷 — register.tsx 와 테스트가 공유한다. `$` 를 쓰지 않는다.
-import type { Limit, ModelWeek, Snapshot } from '../types'
+// 셸 statusline(plugins/jstack/scripts/statusline-command.sh)과 같은 항목·포맷·색에
+// mod 전용 칸(5h, 이슈 ID, ●n, ⚙n, ⏱, 비용)을 더한다.
+import type { Limit, Show, Snapshot, UsageCache } from '../types'
 
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
@@ -13,16 +15,44 @@ const LIMIT_LABEL: Record<string, string> = { five_hour: '5h', seven_day: '7D', 
 const LIMIT_ORDER = ['five_hour', 'seven_day']
 
 // pacing = 사용률 ÷ 창 경과율. fetch_claude_usage.py 의 PacingZone 과 같은 기준.
+const PACE_CHILL = 0.8
 export const PACE_HOT = 1.2
 const PACE_MIN_ELAPSED = 0.05 // 창 초반 5% 는 판정 안 함 — 소량 사용에도 burn 이 튐
 
-export const CTX_WARN = 70
 export const CTX_ALERT = 85
 export const LIMIT_ALERT = 90
-const MODEL_CACHE_MAX_AGE_S = 30 * 60 // 타이머 주기(최대 10분)의 3배
+const USAGE_STALE_S = 30 * 60 // 셸 statusline 의 stale_threshold
+const TOKEN_ERRORS = new Set(['token_needs_relogin', 'token_expired', 'refresh_failed'])
 
-export type Tone = 'normal' | 'warning' | 'error'
-export type Segment = { text: string; tone: Tone }
+// 셸 statusline 의 ANSI 색 (256색은 hex 로).
+const C = {
+  dir: 'blue',
+  branch: 'green',
+  model: 'cyan',
+  version: 'magenta',
+  muted: 'gray',
+  cache: '#5fafff', // 38;5;75
+  amber: '#ffaf00', // 38;5;214
+  limit: '#af87ff', // 38;5;141
+  yellow: '#ffd700', // 38;5;220
+} as const
+// 10단계: 짙은 초록 → 짙은 빨강 (38;5;22 28 34 100 142 178 172 166 160 124)
+const LEVELS = ['#005f00', '#008700', '#00af00', '#878700', '#afaf00', '#d7af00', '#d78700', '#d75f00', '#d70000', '#af0000'] as const
+const ZONE: Record<string, { text: string; color: string }> = {
+  chill: { text: 'CHILL', color: LEVELS[0] },
+  on_track: { text: 'PACE', color: LEVELS[4] },
+  hot: { text: 'HOT', color: LEVELS[9] },
+}
+
+/** 한 칸 안의 색 조각. */
+export type Part = { text: string; color?: string }
+export type Segment = Part[]
+
+/** 0–100 → 10단계 색 (셸 level_color: 1–10 → 1단계, 91– → 10단계). */
+export function levelColor(percent: number): string {
+  const n = Math.min(10, Math.max(1, Math.ceil(Math.round(percent) / 10)))
+  return LEVELS[n - 1] ?? LEVELS[0]
+}
 
 /** 사용률 ÷ 경과율. 리셋 시각이 없거나 창 초반이면 undefined. */
 export function pace(limit: Limit, nowMs: number): number | undefined {
@@ -33,27 +63,25 @@ export function pace(limit: Limit, nowMs: number): number | undefined {
   return limit.percent / 100 / Math.min(elapsed, 1)
 }
 
-export function limitTone(percent: number, burn?: number): Tone {
-  if (percent >= LIMIT_ALERT) return 'error'
-  if ((burn ?? 0) >= PACE_HOT) return 'warning'
-  return 'normal'
+export function zoneOf(burn: number | undefined): string | undefined {
+  if (burn === undefined) return undefined
+  return burn < PACE_CHILL ? 'chill' : burn < PACE_HOT ? 'on_track' : 'hot'
 }
 
-export function ctxTone(percent: number): Tone {
-  if (percent >= CTX_ALERT) return 'error'
-  if (percent >= CTX_WARN) return 'warning'
-  return 'normal'
+/** 리셋까지 남은 시간 (셸 weekly_reset_display): ` →1D/14H`, 하루 미만 ` →3:05`. 지났거나 모르면 ''. */
+export function fmtReset(resetsAt: string | undefined, nowMs: number): string {
+  const ms = resetsAt ? Date.parse(resetsAt) - nowMs : NaN
+  if (!(ms > 0)) return ''
+  if (ms >= DAY_MS) return ` →${Math.floor(ms / DAY_MS)}D/${Math.floor((ms % DAY_MS) / HOUR_MS)}H`
+  return ` →${Math.floor(ms / HOUR_MS)}:${String(Math.floor((ms % HOUR_MS) / 60_000)).padStart(2, '0')}`
 }
 
-/** 남은 시간: 42m · 3:05 · 2d5h */
-export function fmtRemain(ms: number): string {
-  if (ms <= 0) return '0m'
-  if (ms < HOUR_MS) return `${Math.ceil(ms / 60_000)}m`
-  if (ms < DAY_MS) {
-    const m = Math.floor((ms % HOUR_MS) / 60_000)
-    return `${Math.floor(ms / HOUR_MS)}:${String(m).padStart(2, '0')}`
-  }
-  return `${Math.floor(ms / DAY_MS)}d${Math.floor((ms % DAY_MS) / HOUR_MS)}h`
+/** cache 토큰 (셸과 같음): 없음·0 → TBD, 850, 1.2K, 3.4M */
+export function fmtTokens(n: number | undefined): string {
+  if (!n) return 'TBD'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return String(Math.round(n))
 }
 
 /** 경과 시간: 0:07 · 3:12 · 1:02:03 */
@@ -74,6 +102,17 @@ export function modelLabel(id: string): string {
   return minor ? `${name} ${major}.${minor}` : `${name} ${major}`
 }
 
+/**
+ * 첫 요청 전 effort: settings 의 modelSettings[모델].effortLevel → effortLevel.
+ * ponytail: --effort 플래그·/effort 변경은 못 본다 — 첫 요청부터 turn.step 의 실제 값으로 덮인다.
+ */
+export function effortFromSettings(modelSettings: unknown, effortLevel: unknown, modelId: string): string | undefined {
+  const base = modelId.replace(/\[.*\]$/, '') // claude-opus-5-5[1m] → claude-opus-5-5
+  const perModel = (modelSettings as Record<string, { effortLevel?: unknown } | undefined> | null)?.[base]?.effortLevel
+  const level = perModel ?? effortLevel
+  return typeof level === 'string' ? level : undefined
+}
+
 /** mole-linear 브랜치 규칙 `<user>/<team>-<n>` → TEAM-N. */
 export function issueFromBranch(branch: string): string | undefined {
   const [, team, n] = /^[^/]+\/([a-z][a-z0-9]*)-(\d+)$/i.exec(branch) ?? []
@@ -92,54 +131,114 @@ export function parseGitStatus(stdout: string): { branch?: string; dirty: number
   return { branch, dirty: lines.length }
 }
 
-/** 타이머 캐시 JSON → 모델별 주간 한도. 없거나 낡았으면 undefined. */
-export function modelWeekFromCache(cache: unknown, nowS: number): ModelWeek | undefined {
-  const c = cache as {
-    fetched_at?: number
-    seven_day_model?: { label?: string; utilization?: number; resets_at?: string }
+/** statusline-config.txt → 표시 여부. 셸처럼 키가 없거나 1 일 때만 표시. */
+export function parseShow(text: string | undefined): Show {
+  const on = (key: string) => {
+    const v = new RegExp(`^\\s*${key}=["']?([^"'\\s#]*)`, 'm').exec(text ?? '')?.[1]
+    return v === undefined || v === '1'
   }
-  const w = c?.seven_day_model
-  if (!w?.label || typeof w.utilization !== 'number') return undefined
-  if (!(nowS - (c.fetched_at ?? 0) <= MODEL_CACHE_MAX_AGE_S)) return undefined
-  return { label: w.label, percent: w.utilization, resetsAt: w.resets_at }
+  return { dir: on('SHOW_DIRECTORY'), branch: on('SHOW_BRANCH'), usage: on('SHOW_USAGE') }
 }
 
-const ACTIVE_AGENT = new Set(['pending', 'running', 'waiting'])
+/** 타이머 캐시 JSON → UsageCache. 객체가 아니면 undefined. */
+export function parseUsageCache(raw: unknown): UsageCache | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const c = raw as {
+    fetched_at?: number
+    seven_day?: { utilization?: number; resets_at?: string } | null
+    pacing?: { seven_day?: { zone?: string } | null } | null
+    seven_day_model?: { label?: string; utilization?: number; resets_at?: string } | null
+    error_reason?: string | null
+    first_error_at?: number | null
+  }
+  const w = c.seven_day
+  const m = c.seven_day_model
+  return {
+    fetchedAt: c.fetched_at ?? 0,
+    sevenDay: typeof w?.utilization === 'number' ? { percent: w.utilization, resetsAt: w.resets_at } : undefined,
+    zone: c.pacing?.seven_day?.zone,
+    model: m?.label && typeof m.utilization === 'number' ? { label: m.label, percent: m.utilization, resetsAt: m.resets_at } : undefined,
+    errorReason: c.error_reason ?? undefined,
+    firstErrorAt: c.first_error_at ?? undefined,
+  }
+}
 
 export function countRunning(agents: readonly { status: string }[]): number {
-  return agents.filter(a => ACTIVE_AGENT.has(a.status)).length
+  const active = new Set(['pending', 'running', 'waiting'])
+  return agents.filter(a => active.has(a.status)).length
 }
 
-function limitSegment(l: Limit, nowMs: number): Segment {
-  const label = LIMIT_LABEL[l.kind] ?? l.kind
-  const left = l.resetsAt ? Date.parse(l.resetsAt) - nowMs : NaN
-  const reset = Number.isFinite(left) ? ` ↻${fmtRemain(left)}` : ''
-  return { text: `${label} ${Math.round(l.percent)}%${reset}`, tone: limitTone(l.percent, pace(l, nowMs)) }
+const zonePart = (zone: string | undefined): Part[] => {
+  const z = zone ? ZONE[zone] : undefined
+  return z ? [{ text: ` ${z.text}`, color: z.color }] : []
 }
 
-/** band 두 줄: [위치 │ 모델 │ 백그라운드 │ 턴 시간], [ctx │ 5h │ 7D │ 모델별 7D │ 비용]. 빈 칸은 생략. */
+/** 셸 usage_segment: `라벨:` + 10단계 색 `N% →리셋` + 꼬리. */
+function usageSegment(label: string, labelColor: string, percent: number, resetsAt: string | undefined, nowMs: number, tail: Part[]): Segment {
+  const pct = Math.round(percent)
+  return [{ text: `${label}:`, color: labelColor }, { text: ` ${pct}%${fmtReset(resetsAt, nowMs)}`, color: levelColor(pct) }, ...tail]
+}
+
+/** 캐시 오류 경고 (셸과 같음): ⚠ TOKEN? · ⏳ RATE 2h */
+function warning(u: UsageCache, nowMs: number): Part | undefined {
+  if (u.errorReason && TOKEN_ERRORS.has(u.errorReason)) return { text: '⚠ TOKEN?', color: C.yellow }
+  if (u.errorReason !== 'rate_limited') return undefined
+  const s = u.firstErrorAt ? nowMs / 1000 - u.firstErrorAt : 0
+  const dur = s >= 3600 ? ` ${Math.floor(s / 3600)}h` : s >= 60 ? ` ${Math.floor(s / 60)}m` : ''
+  return { text: `⏳ RATE${dur}`, color: C.muted }
+}
+
+/** 5h·7D(실시간, 없으면 캐시)·모델별 7D·경고. */
+function usageSegments(s: Snapshot): Segment[] {
+  const out: Segment[] = []
+  const u = s.usage
+  const stale: Part[] = u && s.now / 1000 - u.fetchedAt > USAGE_STALE_S ? [{ text: ' STALE', color: C.muted }] : []
+  const rank = (k: string) => LIMIT_ORDER.indexOf(k) + 1 || LIMIT_ORDER.length + 1
+  const live = [...s.limits].sort((a, b) => rank(a.kind) - rank(b.kind))
+  for (const l of live) {
+    out.push(usageSegment(LIMIT_LABEL[l.kind] ?? l.kind, C.limit, l.percent, l.resetsAt, s.now, zonePart(zoneOf(pace(l, s.now)))))
+  }
+  if (!live.some(l => l.kind === 'seven_day')) {
+    if (u?.sevenDay) out.push(usageSegment('7D', C.limit, u.sevenDay.percent, u.sevenDay.resetsAt, s.now, [...zonePart(u.zone), ...stale]))
+    else if (!u) out.push([{ text: '7D:', color: C.limit }, { text: ' --%', color: C.muted }]) // 캐시 없음
+  }
+  if (u?.model) out.push(usageSegment(u.model.label, C.amber, u.model.percent, u.model.resetsAt, s.now, stale))
+  const warn = u && warning(u, s.now)
+  if (warn) out.push([warn])
+  return out
+}
+
+/**
+ * band 두 줄 (셸 statusline 순서 + mod 칸):
+ *   dir │ ⎇ branch ISSUE ●n │ model │ effort │ vX │ ⚙n │ ⏱
+ *   ctx: N% │ cache: N │ 5h: │ 7D: │ Model: │ 경고 │ $비용
+ */
 export function buildRows(s: Snapshot): Segment[][] {
   const top: Segment[] = []
-  if (s.dir) {
-    const issue = s.branch ? issueFromBranch(s.branch) : undefined
-    const parts = [s.dir, s.branch, issue].filter(Boolean).join(' · ')
-    const dirty = s.dirty ? ` ●${s.dirty}` : ''
-    top.push({ text: parts + dirty, tone: 'normal' })
+  if (s.dir && s.show.dir) top.push([{ text: s.dir, color: C.dir }])
+  if (s.branch && s.show.branch) {
+    const issue = issueFromBranch(s.branch)
+    top.push([
+      { text: `⎇ ${s.branch}`, color: C.branch },
+      ...(issue ? [{ text: ` ${issue}` }] : []),
+      ...(s.dirty ? [{ text: ` ●${s.dirty}`, color: C.amber }] : []),
+    ])
   }
-  if (s.model) top.push({ text: s.effort ? `${s.model} · ${s.effort}` : s.model, tone: 'normal' })
-  if (s.agents > 0) top.push({ text: `⚙${s.agents}`, tone: 'normal' })
-  if (s.turnStartedAt !== undefined) top.push({ text: `⏱${fmtElapsed(s.now - s.turnStartedAt)}`, tone: 'normal' })
+  if (s.model) top.push([{ text: s.model, color: C.model }])
+  if (s.effort) top.push([{ text: s.effort, color: C.yellow }])
+  if (s.version) top.push([{ text: `v${s.version}`, color: C.version }])
+  if (s.agents > 0) top.push([{ text: `⚙${s.agents}` }])
+  if (s.turnStartedAt !== undefined) top.push([{ text: `⏱${fmtElapsed(s.now - s.turnStartedAt)}` }])
 
   const bottom: Segment[] = []
-  if (s.ctx !== undefined) bottom.push({ text: `ctx ${Math.round(s.ctx)}%`, tone: ctxTone(s.ctx) })
-  const rank = (k: string) => (LIMIT_ORDER.indexOf(k) + 1 || LIMIT_ORDER.length + 1)
-  for (const l of [...s.limits].sort((a, b) => rank(a.kind) - rank(b.kind))) bottom.push(limitSegment(l, s.now))
-  if (s.modelWeek) {
-    const w = s.modelWeek
-    bottom.push({ text: `${w.label} 7D ${Math.round(w.percent)}%`, tone: limitTone(w.percent) })
+  if (s.ctx !== undefined) {
+    const pct = Math.round(s.ctx)
+    bottom.push([{ text: pct === 0 ? 'ctx: TBD' : `ctx: ${pct}%`, color: levelColor(pct) }])
   }
+  bottom.push([{ text: `cache: ${fmtTokens(s.cacheRead)}`, color: C.cache }])
+  if (s.show.usage) bottom.push(...usageSegments(s))
   // 구독이면 rateLimits 가 있고 비용은 청구되지 않는다 → API 키 사용자에게만.
-  if (s.limits.length === 0 && s.usd !== undefined) bottom.push({ text: `$${s.usd.toFixed(2)}`, tone: 'normal' })
+  if (s.limits.length === 0 && s.usd !== undefined) bottom.push([{ text: `$${s.usd.toFixed(2)}` }])
 
   return [top, bottom].filter(r => r.length > 0)
 }
@@ -156,4 +255,4 @@ export function alerts(s: Snapshot): Map<string, string> {
   return out
 }
 
-export const EMPTY: Snapshot = { limits: [], agents: 0, now: 0 }
+export const EMPTY: Snapshot = { limits: [], agents: 0, now: 0, show: { dir: true, branch: true, usage: true } }

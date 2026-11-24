@@ -30,3 +30,6 @@ __pycache__/
 
 # Runtime data
 .claude/skills/omc-learned/
+
+# mod 폴더에 엔진이 만드는 tsconfig
+plugins/mod-*/tsconfig.json
