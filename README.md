@@ -90,7 +90,7 @@ claude plugin install jstack@jstack
 - 사용률에 따라 녹색 → 빨강 10단계로 색이 바뀝니다.
 - 디렉토리·브랜치·사용량은 `~/.claude/statusline-config.txt` 에 `SHOW_DIRECTORY=0`·`SHOW_BRANCH=0`·`SHOW_USAGE=0` 으로 끕니다 (빠진 키는 표시).
 
-사용량은 `fetch-claude-usage` 가 가져옵니다. Claude Code 로그인 토큰(`~/.claude/.credentials.json` 또는 macOS Keychain)으로 `https://api.anthropic.com/api/oauth/usage` 를 호출하고, 결과를 30초 동안 `~/.claude/.usage-cache.json` 에 캐시합니다. Python 표준 라이브러리만 씁니다. 구독(Pro/Max/Team/Enterprise) 계정이 필요합니다.
+사용량은 `fetch-claude-usage` 가 가져옵니다. Claude Code 로그인 토큰(`~/.claude/.credentials.json` 또는 macOS Keychain)으로 `https://api.anthropic.com/api/oauth/usage` 를 호출하고, 결과를 5분 동안 `~/.claude/.usage-cache.json` 에 캐시합니다. 구독(Pro/Max/Team/Enterprise) 계정이 필요합니다. `claude setup-token` 토큰은 이 API 의 `user:profile` 권한이 없어(403) 쓰지 못합니다 — 모델별 7D 를 보려면 `/login` 도 해 두세요.
 
 ## Mods (선택 설치)
 

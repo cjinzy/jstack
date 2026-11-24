@@ -90,7 +90,7 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 - Colors move from green to red in 10 steps as usage grows.
 - Hide the directory, branch or usage with `SHOW_DIRECTORY=0`, `SHOW_BRANCH=0`, `SHOW_USAGE=0` in `~/.claude/statusline-config.txt` (missing keys stay shown).
 
-Usage comes from `fetch-claude-usage`. It reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 30 seconds in `~/.claude/.usage-cache.json`. Python standard library only. Needs a subscription account (Pro/Max/Team/Enterprise).
+Usage comes from `fetch-claude-usage`. It reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 5 minutes in `~/.claude/.usage-cache.json`. Needs a subscription account (Pro/Max/Team/Enterprise). A `claude setup-token` token lacks this API's `user:profile` scope (403) — for per-model 7D, also `/login`.
 
 ## Mods (optional)
 
