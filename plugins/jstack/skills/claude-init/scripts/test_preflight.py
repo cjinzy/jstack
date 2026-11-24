@@ -111,15 +111,16 @@ class TestCheckSettings:
         assert check_settings(settings) == {"complete": True, "missing": []}
 
     def test_statusline_mod_drops_statusline_requirement(self) -> None:
-        """mod-statusline 선택·설치 시 statusLine 은 필수 아님. 선택 해제면 다시 필수."""
+        """mod-statusline 이 켜져 있으면 statusLine 은 필수 아님. 꺼지면 다시 필수."""
         mod = "mod-statusline@jstack"
         settings = {
             "env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"},
             "enabledPlugins": {mod: True},
             "statusLine": {"type": "command", "command": "mine.sh"},
         }
-        assert check_settings(settings, [mod]) == {"complete": True, "missing": []}
-        assert check_settings(settings, [])["missing"] == ["statusLine.command"]
+        assert check_settings(settings) == {"complete": True, "missing": []}
+        del settings["enabledPlugins"]
+        assert check_settings(settings)["missing"] == ["statusLine.command"]
 
     def test_statusline_mod_flags_our_statusline(self) -> None:
         """mod 대체 중인데 우리 셸 statusLine 이 남아 있으면 Step 4 가 제거해야 한다."""
@@ -129,7 +130,7 @@ class TestCheckSettings:
             "enabledPlugins": {mod: True},
             "statusLine": {"type": "command", "command": "bash ~/.claude/statusline-command.sh"},
         }
-        assert check_settings(settings, [mod]) == {"complete": False, "missing": ["statusLine"]}
+        assert check_settings(settings) == {"complete": False, "missing": ["statusLine"]}
 
 
 class TestStaleSyncedFiles:

@@ -1,7 +1,7 @@
 """settings.json deep merge 스크립트.
 
 REQUIRED_SETTINGS(팀 필수) 는 기존 값을 덮어쓰고, DEFAULT_SETTINGS(개인 선호) 는 없을 때만 넣는다.
-statusLine 은 mod-statusline 선택·설치 시 쓰지 않고, 우리 값일 때만 제거한다 (커스텀 보존).
+statusLine 은 mod-statusline 이 켜져 있으면 쓰지 않고, 우리 값일 때만 제거한다 (커스텀 보존).
 전역 "hooks" 는 구버전 jin-hooks/ 항목만 제거한다 (개인 hooks 보존, 현재는 plugin hooks.json 이 관리).
 변경 시 settings_backup_<YYYYMMDD>.json 백업 후 쓰고, 키 단위 diff 를 report_changes 에 기록한다.
 diff 기준은 `report_changes.py --snapshot` 시점(Step 2 plugin 설치 전) 원본, 없으면 현재 파일.
@@ -46,14 +46,15 @@ STATUSLINE_MOD = "mod-statusline@jstack"
 STATUSLINE_KEY = "statusLine"
 
 
-def required_settings(settings: dict, plugins: list[str]) -> dict:
-    """적용할 팀 필수 키. statusline mod 가 선택·설치돼 있으면 statusLine 제외.
+def required_settings(settings: dict) -> dict:
+    """적용할 팀 필수 키. statusline mod 가 켜져 있으면(enabledPlugins) statusLine 제외.
 
-    설치(enabledPlugins)까지 보는 이유: 설치 실패 시 셸 statusline 마저 빠지지 않게.
+    init 선택이 아닌 켜짐으로 판단 — /plugin 으로만 켠 경우도 같고, SessionStart hook
+    (hooks/session_init.py swap_statusline) 과 같은 기준이라 서로 되돌리지 않는다.
+    설치 실패면 꺼져 있으니 셸 statusline 이 남는다.
     """
     enabled = settings.get("enabledPlugins")
-    installed = isinstance(enabled, dict) and enabled.get(STATUSLINE_MOD) is True
-    if STATUSLINE_MOD in plugins and installed:
+    if isinstance(enabled, dict) and enabled.get(STATUSLINE_MOD) is True:
         return {k: v for k, v in REQUIRED_SETTINGS.items() if k != STATUSLINE_KEY}
     return REQUIRED_SETTINGS
 
@@ -117,9 +118,7 @@ def merge_settings(settings_path: Path | None = None) -> dict:
         existing = {}
         print(f"[merge_settings] 설정 파일 없음, 새로 생성: {path}")
 
-    from preflight import selected_plugins  # 지연 import: 순환 회피
-
-    required = required_settings(existing, selected_plugins(path.parent))
+    required = required_settings(existing)
     # 기본값 ← 기존 ← 필수 순으로 덮는다: 기존 값이 기본값을 이기고, 필수가 모두를 이긴다.
     merged = deep_merge(deep_merge(DEFAULT_SETTINGS, existing), required)
 

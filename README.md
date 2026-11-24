@@ -4,7 +4,7 @@
 
 Claude Code 플러그인입니다. 계획, 스펙, 프로젝트 문서화(SoT), 리뷰, 커밋을 돕는 스킬 13개와 hook 2개, 사용량 statusline 을 담았습니다.
 
-> 버전 `6.4.0` · 라이선스 MIT
+> 버전 `6.4.1` · 라이선스 MIT
 
 ## 설치
 
@@ -65,7 +65,7 @@ claude plugin install jstack@jstack
 
 | 적용 | 키 |
 |---|---|
-| 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` (`mod-statusline` 을 고르고 설치되면 넣지 않고, init 이 넣은 값이면 제거 — 직접 바꾼 값은 유지) |
+| 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` (`mod-statusline` 이 켜져 있으면 넣지 않고, init 이 넣은 값이면 제거 — 직접 바꾼 값은 유지) |
 | 없을 때만 | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
 
 `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뜁니다. 원치 않으면 `false` 로 두세요 — init 이 유지합니다.
@@ -76,7 +76,7 @@ claude plugin install jstack@jstack
 
 | 이벤트 | 하는 일 |
 |---|---|
-| `SessionStart` | 이 마켓플레이스 저장소 자동 업데이트(`git pull --ff-only`), init 이 설치한 사용량 타이머가 사라졌으면 재등록, 예전 버전이 `~/.claude/skills` 에 남긴 사본을 백업 폴더로 이동 |
+| `SessionStart` | 이 마켓플레이스 저장소 자동 업데이트(`git pull --ff-only`), init 이 설치한 사용량 타이머가 사라졌으면 재등록, 예전 버전이 `~/.claude/skills` 에 남긴 사본을 백업 폴더로 이동, `mod-statusline` 을 켜면 init 의 셸 `statusLine` 을 빼고 끄면 되돌림 (settings.json 백업) |
 | `UserPromptSubmit` | plan 모드면 ambition 계획 여부를 묻게 하고, 메시지에 `ambition`/`앰비션` 이 있으면 `ambition` 스킬을 로드 |
 
 ## Statusline
@@ -113,7 +113,7 @@ ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL 
 - 더 보여 주는 것: 5h, 브랜치의 Linear 이슈 ID, 미커밋 파일 수 `●n`, 실행 중인 백그라운드 에이전트 `⚙n`, 진행 중인 턴 시간 `⏱`, 비용(구독이 아닐 때만)
 - 5h·7D 는 API 응답마다 갱신되는 실시간 값입니다(없으면 타이머 캐시). 모델별 7D·`STALE`·경고(`⚠ TOKEN?`, `⏳ RATE`)는 타이머 캐시에서 읽습니다.
 - 컨텍스트 85%, 한도 90%, 사용 속도 초과(HOT)는 넘는 순간 한 번 알립니다.
-- `claude-init` 에서 이 mod 를 고르고 설치되면 셸 `statusLine` 설정을 넣지 않고, 전에 넣은 것도 지웁니다 (직접 바꾼 statusLine 은 유지). mod 를 지원하는 Claude Code 버전이 필요합니다.
+- 셸 statusline 은 따로 지울 필요 없습니다. 기존 사용자도 `/plugin install` 만 하면 다음 세션 시작 때 jstack hook 이 init 이 넣은 `statusLine` 을 빼고(settings.json 백업), mod 를 끄거나 지우면 되돌립니다. 직접 바꾼 statusLine 은 건드리지 않습니다. mod 를 지원하는 Claude Code 버전이 필요합니다.
 - push 전에 써 보기: `claude --plugin-dir <저장소>/plugins/mod-statusline` (셸 statusline 과 함께 보입니다)
 
 ## 개발

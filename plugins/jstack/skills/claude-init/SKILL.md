@@ -44,7 +44,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/report_changes.py" --snapshot ~/.claude/set
 
 이어서 **선택 플러그인**을 묻는다 (별도 AskUserQuestion). Step 0 출력의 `optional_plugins` 를 4개씩 나눠 multiSelect 질문으로 만든다 (질문당 option 최대 4개). 각 option 은 label = plugin 이름(`@` 앞), description = `description`. `selected: true` 인 항목을 기본 추천으로 표시한다. 필수(`context-mode`, `serena`, `i-have-adhd`)는 묻지 않고 항상 설치한다고 알린다. 고른 ID 를 쉼표로 이어 `SELECT` 로 둔다 (아무것도 안 고르면 빈 문자열).
 
-`mod-statusline` 은 셸 statusline 을 대체한다 — 고르면 Step 4 가 `statusLine` 을 넣지 않는다 (사용량 타이머는 유지, mod 가 그 캐시를 읽음).
+`mod-statusline` 은 셸 statusline 을 대체한다 — 켜져 있으면 Step 4 가 `statusLine` 을 넣지 않는다 (사용량 타이머는 유지, mod 가 그 캐시를 읽음). `/plugin` 으로만 켜고 끈 경우는 SessionStart hook 이 같은 기준으로 처리한다.
 
 ## Step 2 — Marketplace·Plugin 설치
 
@@ -88,7 +88,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/merge_settings.py"
 | 키 | 값 | 적용 |
 |----|----|------|
 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `"1"` | 덮어씀 |
-| `statusLine` | `bash ~/.claude/statusline-command.sh` | 덮어씀. `mod-statusline` 선택·설치 시 넣지 않고 이 값이면 제거 (커스텀 보존) |
+| `statusLine` | `bash ~/.claude/statusline-command.sh` | 덮어씀. `mod-statusline` 이 켜져 있으면(enabledPlugins) 넣지 않고 이 값이면 제거 (커스텀 보존) |
 | `enableAllProjectMcpServers` | `true` | 없을 때만 |
 | `skipDangerousModePermissionPrompt` | `true` | 없을 때만 |
 | `permissions.defaultMode` | `"plan"` | 없을 때만 |

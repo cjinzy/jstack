@@ -277,11 +277,11 @@ def test_mod_keeps_custom_statusline(tmp_path: Path) -> None:
     assert merge_settings(path)["statusLine"] == MINE
 
 
-def test_mod_deselected_forces_statusline(tmp_path: Path) -> None:
-    """선택 해제 → 지금처럼 강제 (설치돼 남아 있어도)."""
+def test_mod_enabled_without_selection_removes_our_statusline(tmp_path: Path) -> None:
+    """/plugin 으로만 켠 mod (init 선택 없음) 도 대체 — SessionStart hook 과 같은 기준이라 왕복하지 않는다."""
     path = tmp_path / "settings.json"
-    _with_mod(path, MINE, selected=False)
-    assert merge_settings(path)["statusLine"] == REQUIRED_SETTINGS["statusLine"]
+    _with_mod(path, REQUIRED_SETTINGS["statusLine"], selected=False)
+    assert "statusLine" not in merge_settings(path)
 
 
 def test_mod_not_installed_forces_statusline(tmp_path: Path) -> None:

@@ -4,7 +4,7 @@
 
 A Claude Code plugin with 13 skills for planning, specs, project documentation (SoT), review and commits, plus 2 hooks and a usage statusline.
 
-> Version `6.4.0` · License MIT
+> Version `6.4.1` · License MIT
 
 ## Install
 
@@ -65,7 +65,7 @@ Keys written to `settings.json`:
 
 | Applied | Keys |
 |---|---|
-| Overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` (skipped when `mod-statusline` is picked and installed; init's own value is removed, a custom one kept) |
+| Overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` (skipped while `mod-statusline` is enabled; init's own value is removed, a custom one kept) |
 | Only if missing | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
 
 `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` connect project `.mcp.json` servers without approval and skip the bypass-permissions mode warning. Set them to `false` to opt out — init keeps your value.
@@ -76,7 +76,7 @@ Always active once the plugin is installed.
 
 | Event | What it does |
 |---|---|
-| `SessionStart` | Auto-updates this marketplace repo (`git pull --ff-only`), re-registers the usage timer if init installed it and it went missing, moves copies left in `~/.claude/skills` by old versions to a backup folder |
+| `SessionStart` | Auto-updates this marketplace repo (`git pull --ff-only`), re-registers the usage timer if init installed it and it went missing, moves copies left in `~/.claude/skills` by old versions to a backup folder, takes init's shell `statusLine` out while `mod-statusline` is enabled and puts it back when it is off (settings.json backed up) |
 | `UserPromptSubmit` | In plan mode, asks whether to plan in ambition mode; if the message contains `ambition`/`앰비션`, loads the `ambition` skill |
 
 ## Statusline
@@ -113,7 +113,7 @@ ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL 
 - Adds: 5h, the branch's Linear issue ID, uncommitted file count `●n`, running background agents `⚙n`, elapsed time of the running turn `⏱`, cost (only off a subscription)
 - 5h and 7D are live, updated on every API response (the timer cache when absent). Per-model 7D, `STALE` and warnings (`⚠ TOKEN?`, `⏳ RATE`) come from the timer cache.
 - Context 85%, a limit at 90%, and outpacing a limit (HOT) each raise one notice when crossed.
-- Picking and installing this mod via `claude-init` stops writing the shell `statusLine` and removes the one it wrote earlier (a statusLine you changed is kept). Needs a Claude Code version with mod support.
+- No need to remove the shell statusline yourself. Existing users only run `/plugin install`: at the next session start the jstack hook takes out the `statusLine` init wrote (settings.json backed up), and puts it back when the mod is disabled or uninstalled. A statusLine you changed is left alone. Needs a Claude Code version with mod support.
 - Try it before pushing: `claude --plugin-dir <repo>/plugins/mod-statusline` (shows alongside the shell statusline)
 
 ## Development

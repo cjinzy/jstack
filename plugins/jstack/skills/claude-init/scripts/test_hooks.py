@@ -272,3 +272,63 @@ class TestHooksManifest:
         with patch("session_init.Path.home", return_value=tmp_path):
             auto_update()
         assert mock_run.call_args.kwargs["timeout"] < hook["timeout"]
+
+
+class TestSwapStatusline:
+    """mod-statusline 을 /plugin 으로 켜고 끈 기존 사용자: init 의 셸 statusLine 을 빼고 되돌린다."""
+
+    MOD = "mod-statusline@jstack"
+    OURS = {"type": "command", "command": "bash ~/.claude/statusline-command.sh"}
+    MINE = {"type": "command", "command": "mine.sh"}
+
+    def _run(self, home: Path, settings: dict | str, *, script: bool = True) -> Path:
+        path = home / ".claude" / "settings.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(settings if isinstance(settings, str) else json.dumps(settings))
+        if script:
+            (home / ".claude" / "statusline-command.sh").write_text("#!/bin/bash\n")
+        with patch("session_init.Path.home", return_value=home):
+            session_init.swap_statusline()
+        return path
+
+    def _backups(self, home: Path) -> list[Path]:
+        return list((home / ".claude" / "backups").glob("settings_backup_*.json"))
+
+    def test_mod_on_removes_ours_with_backup(self, tmp_path: Path) -> None:
+        before = {"enabledPlugins": {self.MOD: True}, "statusLine": self.OURS, "x": 1}
+        path = self._run(tmp_path, before)
+        assert json.loads(path.read_text()) == {"enabledPlugins": {self.MOD: True}, "x": 1}
+        [backup] = self._backups(tmp_path)
+        assert json.loads(backup.read_text()) == before
+
+    def test_mod_on_keeps_custom(self, tmp_path: Path) -> None:
+        before = {"enabledPlugins": {self.MOD: True}, "statusLine": self.MINE}
+        path = self._run(tmp_path, before)
+        assert json.loads(path.read_text()) == before
+        assert self._backups(tmp_path) == []
+
+    def test_mod_off_restores_ours(self, tmp_path: Path) -> None:
+        for enabled in ({self.MOD: False}, {}):
+            path = self._run(tmp_path, {"enabledPlugins": enabled})
+            assert json.loads(path.read_text())["statusLine"] == self.OURS
+
+    def test_mod_off_without_init_script_untouched(self, tmp_path: Path) -> None:
+        """init 이력(statusline-command.sh) 없으면 넣지 않는다."""
+        path = self._run(tmp_path, {"enabledPlugins": {}}, script=False)
+        assert "statusLine" not in json.loads(path.read_text())
+
+    def test_steady_states_untouched(self, tmp_path: Path) -> None:
+        for settings in ({"enabledPlugins": {self.MOD: True}}, {"statusLine": self.OURS}):
+            path = self._run(tmp_path, settings)
+            assert json.loads(path.read_text()) == settings
+        assert self._backups(tmp_path) == []
+
+    def test_broken_settings_untouched(self, tmp_path: Path) -> None:
+        path = self._run(tmp_path, "{not json")
+        assert path.read_text() == "{not json"
+
+    def test_main_runs_swap(self, tmp_path: Path) -> None:
+        with patch("session_init.swap_statusline") as swap, patch("session_init.auto_update"), \
+             patch("session_init.ensure_timer"), patch("session_init.retire_legacy_skills"):
+            session_main()
+        swap.assert_called_once()

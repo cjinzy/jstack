@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""세션 시작 시 구버전 스킬 사본 정리 + 사용량 타이머 복구 + marketplace 자동 업데이트.
+"""세션 시작 시 구버전 스킬 사본 정리 + statusLine 전환 + 사용량 타이머 복구 + marketplace 자동 업데이트.
 
 SessionStart hook (hooks/hooks.json). stdout 은 대화 컨텍스트에 주입되므로 쓰지 않는다.
 """
 
+import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,6 +29,13 @@ GIT_PULL_TIMEOUT_SEC = 8
 # 구버전(≤3.x) sync_repo 가 ~/.claude/skills 에 복사한 스킬 중 plugin 과 이름이 겹치거나(사용자 스킬이
 # plugin 스킬을 가림) 제거된 것. 다른 legacy 이름(py-standard 등)은 충돌이 없어 사용자 판단에 맡긴다.
 LEGACY_SKILLS = {"jin-claude-init", "jin-commit", "jin-interview", "manage-skills", "verify-implementation"}
+SETTINGS_FILE = Path(".claude/settings.json")
+SETTINGS_BACKUP_DIR = Path(".claude/backups")
+# 셸 statusline 을 대체하는 mod. 켜지면 init 의 statusLine 을 빼고, 꺼지면 되돌린다.
+STATUSLINE_MOD = "mod-statusline@jstack"
+# init 이 넣는 statusLine (merge_settings.REQUIRED_SETTINGS 와 같은 값)·스크립트 (sync_repo 가 복사 = init 이력)
+OUR_STATUSLINE = {"type": "command", "command": "bash ~/.claude/statusline-command.sh"}
+STATUSLINE_SCRIPT = Path(".claude/statusline-command.sh")
 
 
 def auto_update() -> None:
@@ -80,6 +89,45 @@ def retire_legacy_skills() -> None:
             print(f"[jstack] warning: retire {src} failed: {e!r}", file=sys.stderr)
 
 
+def swap_statusline() -> None:
+    """mod-statusline 이 켜져 있으면 init 의 셸 statusLine 을 빼고, 꺼지면 되돌린다.
+
+    init 을 다시 돌리지 않고 /plugin 으로 mod 를 켜고 끈 기존 사용자용 — 안 하면 둘 다 보이거나 둘 다 없다.
+    판단 기준은 merge_settings.required_settings 와 같다 (enabledPlugins). 사용자 커스텀 statusLine 은
+    건드리지 않고, 바꾸기 전 settings.json 을 ~/.claude/backups/ 에 복사한다.
+    ponytail: user 범위 settings 만 본다. 프로젝트 범위로 켠 mod 는 대상 아님.
+    """
+    home = Path.home()
+    path = home / SETTINGS_FILE
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if not isinstance(settings, dict):
+        return
+    enabled = settings.get("enabledPlugins")
+    mod_on = isinstance(enabled, dict) and enabled.get(STATUSLINE_MOD) is True
+    current = settings.get("statusLine")
+    if mod_on and isinstance(current, dict) and current.get("command") == OUR_STATUSLINE["command"]:
+        del settings["statusLine"]
+        action = "removed (mod-statusline 이 대체)"
+    elif not mod_on and current is None and (home / STATUSLINE_SCRIPT).is_file():
+        settings["statusLine"] = OUR_STATUSLINE
+        action = "restored (mod-statusline 꺼짐)"
+    else:
+        return
+    try:
+        backup = home / SETTINGS_BACKUP_DIR / f"settings_backup_{datetime.now():%Y%m%d_%H%M%S_%f}.json"
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, backup)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        os.replace(tmp, path)  # 원자적 교체 — 도중에 죽어도 settings.json 이 반쯤 쓰이지 않게
+        print(f"[jstack] statusLine {action}; backup {backup}", file=sys.stderr)
+    except OSError as e:
+        print(f"[jstack] warning: statusLine swap failed: {e!r}", file=sys.stderr)
+
+
 def saved_interval(home: Path) -> int:
     """init 이 저장한 수집 주기. 없거나 정수 아님·허용값 밖이면 기본값."""
     try:
@@ -117,6 +165,7 @@ def ensure_timer() -> None:
 def main() -> None:
     """메인 진입점."""
     retire_legacy_skills()  # 빠름 — 사본이 plugin 스킬을 가리기 전에
+    swap_statusline()  # 빠름 — 파일 하나
     ensure_timer()  # 빠름 — 느린 git pull 보다 먼저
     auto_update()
 

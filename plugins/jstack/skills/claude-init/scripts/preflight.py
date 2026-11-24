@@ -155,20 +155,19 @@ def stale_synced_files() -> list[str]:
     return stale
 
 
-def check_settings(settings: dict, plugins: list[str] | None = None) -> dict:
+def check_settings(settings: dict) -> dict:
     """팀 필수 키(Step 4 가 덮어쓰는 키)가 같은 값인지 비교한다.
 
     개인 선호 키(DEFAULT_SETTINGS)는 없을 때만 넣는 키라 보지 않는다 — 비워 둔 사용자가 영구 partial 이 되지 않게.
 
     Args:
-        settings: settings.json 딕셔너리.
-        plugins: 필수 + 선택 플러그인. None 이면 저장된 선택 (mod-statusline 은 statusLine 제외).
+        settings: settings.json 딕셔너리 (mod-statusline 이 켜져 있으면 statusLine 제외).
 
     Returns:
         complete 여부와 missing(없거나 값이 다른) 키 목록.
     """
     missing = []
-    required = required_settings(settings, selected_plugins() if plugins is None else plugins)
+    required = required_settings(settings)
     for key, value in required.items():
         current = settings.get(key)
         if isinstance(value, dict):
@@ -358,7 +357,7 @@ def run_preflight() -> dict:
     report["statusline"] = STATUSLINE_FILE not in stale
     # CLAUDE.md + @include 보조 문서
     report["claude_md"] = {"missing": [name for name in stale if name != STATUSLINE_FILE]}
-    report["settings"] = check_settings(settings, plugins)
+    report["settings"] = check_settings(settings)
     report["venv"] = check_venv()
     report["timer"] = check_timer()
     report["hooks"] = check_hooks(settings)
