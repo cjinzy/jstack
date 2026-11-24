@@ -210,7 +210,7 @@ function usageSegments(s: Snapshot): Segment[] {
 
 /**
  * band 두 줄 (셸 statusline 순서 + mod 칸):
- *   dir │ ⎇ branch ISSUE ●n │ model │ effort │ vX │ ⚙n │ ⏱
+ *   dir │ ⎇ branch ISSUE ●n │ model │ effort │ vX │ ⚙ n │ ⏱ 0:07
  *   ctx: N% │ cache: N │ 5h: │ 7D: │ Model: │ 경고 │ $비용
  */
 export function buildRows(s: Snapshot): Segment[][] {
@@ -227,8 +227,9 @@ export function buildRows(s: Snapshot): Segment[][] {
   if (s.model) top.push([{ text: s.model, color: C.model }])
   if (s.effort) top.push([{ text: s.effort, color: C.yellow }])
   if (s.version) top.push([{ text: `v${s.version}`, color: C.version }])
-  if (s.agents > 0) top.push([{ text: `⚙${s.agents}` }])
-  if (s.turnStartedAt !== undefined) top.push([{ text: `⏱${fmtElapsed(s.now - s.turnStartedAt)}` }])
+  // 아이콘 뒤 공백 필수: 터미널이 ⚙·⏱ 을 2칸 emoji 로 그려 바로 뒤 글자를 덮는다.
+  if (s.agents > 0) top.push([{ text: `⚙ ${s.agents}` }])
+  if (s.turnStartedAt !== undefined) top.push([{ text: `⏱ ${fmtElapsed(s.now - s.turnStartedAt)}` }])
 
   const bottom: Segment[] = []
   if (s.ctx !== undefined) {

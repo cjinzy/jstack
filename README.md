@@ -105,7 +105,7 @@ claude plugin install jstack@jstack
 위 셸 statusline 을 대체하는 프롬프트 위 band 입니다. jq·셸 실행 없이 터미널·desktop·VS Code 에 그립니다.
 
 ```
-jstack │ ⎇ jin/mole-123 MOLE-123 ●3 │ Opus 5.5 │ xhigh │ v2.1.331 │ ⚙2 │ ⏱3:12
+jstack │ ⎇ jin/mole-123 MOLE-123 ●3 │ Opus 5.5 │ xhigh │ v2.1.331 │ ⚙ 2 │ ⏱ 3:12
 ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL │ Fable: 18% →1D/14H
 ```
 

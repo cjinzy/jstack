@@ -5,7 +5,7 @@
 ## 표시 (프롬프트 위 band `ui.render AbovePrompt`, 색 지원, 모든 surface)
 
 ```
-jstack · jin/mole-123 · MOLE-123 ●3 │ Opus 5.5 · high │ ⚙2 │ ⏱3:12
+jstack · jin/mole-123 · MOLE-123 ●3 │ Opus 5.5 · high │ ⚙ 2 │ ⏱ 3:12
 ctx 72% │ 5h 42% ↻1:20 │ 7D 63% ↻2d5h │ Fable 7D 30% │ $1.24
 ```
 

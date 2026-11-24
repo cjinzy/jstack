@@ -108,7 +108,7 @@ const SNAP: Snapshot = {
 
 test('band 행: 셸 statusline 항목 전부 + mod 칸', async () => {
   const [top, bottom] = buildRows(SNAP)
-  expect(texts(top)).toEqual(['jstack', '⎇ jin/mole-7 MOLE-7 ●3', 'Opus 5.5', 'xhigh', 'v2.1.331', '⚙2', '⏱3:12'])
+  expect(texts(top)).toEqual(['jstack', '⎇ jin/mole-7 MOLE-7 ●3', 'Opus 5.5', 'xhigh', 'v2.1.331', '⚙ 2', '⏱ 3:12'])
   // 5h: 1:20 남음 = 창 73% 경과, 42% 사용 → burn 0.58 CHILL. 7D: 38h 남음 = 77% 경과, 27% → CHILL
   expect(texts(bottom)).toEqual(['ctx: 88%', 'cache: 45.6K', '5h: 42% →1:20 CHILL', '7D: 27% →1D/14H CHILL', 'Fable: 18% →1D/14H'])
 })
@@ -206,7 +206,7 @@ test('턴 타이머: 시작에 켜지고, 중단돼도 꺼지고, 작업 중 아
   }
 
   await $.turn.start({ text: 'hi', turnId: 't1' })
-  expect(await timer(true)).toBe('⏱0:00')
+  expect(await timer(true)).toBe('⏱ 0:00')
   expect(await timer(false)).toBeUndefined()
   await $.turn.complete({ turnId: 't1', reason: 'aborted', answer: '', durationMs: 1, isAborted: true })
   expect(await timer(true)).toBeUndefined()

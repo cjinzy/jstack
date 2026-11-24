@@ -105,7 +105,7 @@ The same marketplace carries mods as separate plugins. Install only what you wan
 A band above the prompt that replaces the shell statusline above. No jq or shell runs; it draws in the terminal, the desktop app and VS Code.
 
 ```
-jstack │ ⎇ jin/mole-123 MOLE-123 ●3 │ Opus 5.5 │ xhigh │ v2.1.331 │ ⚙2 │ ⏱3:12
+jstack │ ⎇ jin/mole-123 MOLE-123 ●3 │ Opus 5.5 │ xhigh │ v2.1.331 │ ⚙ 2 │ ⏱ 3:12
 ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL │ Fable: 18% →1D/14H
 ```
 
