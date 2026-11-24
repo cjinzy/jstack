@@ -105,7 +105,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 1. This session only plans, keeps the ledger, consolidates reports, and asks you questions. Code edits, builds, tests, and research go to sub-sessions.
 2. In plan mode, it writes only the dispatch plan (session names, areas, mode, briefs). After approval it creates the ledger and starts delegating. (asks)
 3. Creates the ledger `.maestro/ledger.md` in the current directory. In a git repo, adds `.maestro/` to `info/exclude`.
-4. If an active or idle session owns the same area, it gets the work. New work goes to a new sub-session `m-<area>-<n>`: inside herdr, ultracode or long jobs get an independent Claude session in a herdr pane (Workflow available); everything else gets a named subagent. Broad one-off jobs with no follow-up run directly as a Workflow.
+4. If an active or idle session owns the same area, it gets the work. New work goes to a new sub-session `m-<area>-<n>`: inside herdr, ultracode, long, or user-steered jobs get an independent Claude session in a herdr pane (Workflow available); everything else gets a named subagent. Broad one-off jobs with no follow-up run directly as a Workflow.
 5. When two or more sessions will edit files in the same repo at once, each gets its own worktree. Merging is delegated too.
 6. Picks a mode per hand-off: `ultracode` for audits, migrations, reviews, and high-risk changes; `normal` for small fixes.
 7. When a sub-session asks a question or needs a decision or approval, the orchestrator does not answer it. It asks you as-is and passes your answer back. (asks)
