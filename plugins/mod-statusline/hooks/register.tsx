@@ -2,7 +2,7 @@
 //
 //   session.start ─┐                        ┌─ ui.render AbovePrompt (buildRows)
 //   session.measure ─┼─ update(snap) ─ $.state ┤
-//   turn.complete ──┤                        └─ toast (alerts, 넘는 순간 1회)
+//   turn.start/complete ┤                    └─ toast (alerts, 넘는 순간 1회)
 //   1초 ticker ─────┘ (턴 시간·백그라운드 수)
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
@@ -63,6 +63,7 @@ export const register: Register = on => {
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
+    await patch($, { turnStartedAt: undefined }) // $.state 는 reload 를 넘어 남는다
     await refreshLocal($)
     ticker?.cancel()
     ticker = $.clock.every(TICK_MS, async () => {
@@ -97,12 +98,15 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  on('prompt.submit', async ($, e, next) => {
+  // prompt.submit 이 아닌 turn.start: 턴 없는 슬래시 명령·턴 중 입력이 타이머를 건드리지 않게.
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e)
     const now = await $.clock.now()
     await patch($, { turnStartedAt: now, now })
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
 
+  // 중단된 턴도 reason 'aborted' 로 여기 온다.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (!e.agentId) {
@@ -114,7 +118,9 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
-    const rows = buildRows(await read($, snap))
+    const s = await read($, snap)
+    // 턴 시간은 엔진이 작업 중이라고 할 때만 — 종료 이벤트를 놓쳐도 남지 않게.
+    const rows = buildRows(e.props.isWorking ? s : { ...s, turnStartedAt: undefined })
     if (rows.length === 0) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     return (

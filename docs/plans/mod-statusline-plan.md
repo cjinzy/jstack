@@ -18,7 +18,7 @@ ctx 72% │ 5h 42% ↻1:20 │ 7D 63% ↻2d5h │ Fable 7D 30% │ $1.24
 | 모델별 7D | `~/.claude/.usage-cache.json` `seven_day_model` | 30분 넘게 낡았거나 없으면 생략 |
 | 비용 | `cost.usd` | `rateLimits` 가 비었을 때(구독 아님)만 |
 | 백그라운드 | `$.agent.list()` 중 pending·running·waiting | 0 이면 생략 |
-| 턴 시간 | prompt.submit → turn.complete, 진행 중에만 1초 갱신 | |
+| 턴 시간 | main `turn.start` → `turn.complete`(중단 포함), 1초 갱신 | `isWorking` 일 때만 표시, `session.start` 에서 초기화 |
 | 알림 | ctx 85, 5h·7D 90, pacing hot 진입 | 넘는 순간 toast 1회 |
 
 ## 파일
@@ -35,3 +35,6 @@ push 는 사용자. 세션에 즉시 로드하지 않음.
 - Altitude: N/A — 범위는 사용자가 기능 단위로 확정.
 - Depth: 외부 판정자 = `claude plugin test`·validate·tsc·pytest. 반증할 가정: "`session.measure` 만으로 5h·7D 가 채워진다" → 첫 응답 전엔 비어 있음을 테스트로 고정(빈 칸 생략).
 - Range: N/A — 단일 도구 구현.
+
+## 실검증
+`claude -p … --plugin-dir plugins/mod-statusline --debug-file` — session.start·turn.start·session.measure·classic.Stop·turn.complete 실행, 실패·skip 0. `ui.render` 는 `-p` 에서 안 그려져 테스트 키트로만 확인.

@@ -112,7 +112,8 @@ export function countRunning(agents: readonly { status: string }[]): number {
 
 function limitSegment(l: Limit, nowMs: number): Segment {
   const label = LIMIT_LABEL[l.kind] ?? l.kind
-  const reset = l.resetsAt ? ` ↻${fmtRemain(Date.parse(l.resetsAt) - nowMs)}` : ''
+  const left = l.resetsAt ? Date.parse(l.resetsAt) - nowMs : NaN
+  const reset = Number.isFinite(left) ? ` ↻${fmtRemain(left)}` : ''
   return { text: `${label} ${Math.round(l.percent)}%${reset}`, tone: limitTone(l.percent, pace(l, nowMs)) }
 }
 

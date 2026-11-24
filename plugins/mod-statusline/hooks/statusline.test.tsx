@@ -138,3 +138,30 @@ test('임계치 toast 는 넘을 때 한 번, 내려갔다 다시 넘으면 또'
   expect(toasts).toHaveLength(2)
   expect(toasts[0]).toMatch(/^컨텍스트 86%/)
 })
+
+test('턴 타이머: 시작에 켜지고, 중단돼도 꺼지고, 작업 중 아니면 안 보임', async ($, on) => {
+  on('clock.now', () => ({ value: NOW }))
+  on('turn.start', () => ({ turnId: 't1' }))
+  on('turn.complete', () => ({ text: '' }))
+  on('session.cwd', () => ({ value: '/x/jstack' }))
+  on('session.model', () => ({ value: 'claude-opus-5-5' }))
+  on('process.run', () => ({ value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('env.get', () => ({ value: undefined }))
+  const timer = async (isWorking: boolean) => {
+    const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, isWorking } })
+    const found = await ui.find({ type: 'Text', text: /^⏱/ })
+    await ui.unmount()
+    return found?.text
+  }
+
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect(await timer(true)).toBe('⏱0:00')
+  expect(await timer(false)).toBeUndefined()
+  await $.turn.complete({ turnId: 't1', reason: 'aborted', answer: '', durationMs: 1, isAborted: true })
+  expect(await timer(true)).toBeUndefined()
+})
+
+test('리셋 시각이 깨져도 NaN 을 그리지 않음', async () => {
+  const rows = buildRows({ ...EMPTY, limits: [{ kind: 'five_hour', percent: 42, resetsAt: 'garbage' }], now: NOW })
+  expect(rows[0]?.map(s => s.text)).toEqual(['5h 42%'])
+})
