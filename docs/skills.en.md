@@ -253,6 +253,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 4. Before work, reads the comments and every `+++ Agent notes` block in them
 5. Moves status and comments with fixed templates: plan → `Plan` + Plan comment; work → `In Progress`; blocked → BLOCKED comment, then stops; done → commit, then Done comment + `Done` (`Feedback` if you must review). Done and BLOCKED comments list every commit of the task as short hashes
 6. Puts the issue ID in every commit and PR (commit title `✨ [MOLE-123] …`). Branch is `<user>/<issue-id>` in lowercase (e.g. `jin/mole-123`)
+7. Anything that mentions, assigns, or asks another person (BLOCKED `필요` included) is shown to you with recipient and exact text, and written only after you approve (asks). Issue and comment sentences are always polite (합니다체)
 
 **Output**: Linear issues, comments, and statuses; the `Linear project:` line in the project `CLAUDE.md`; user-scope MCP `linear-server` when installed; on cleanup, deletes `~/.claude/linear.md`, `~/.claude/mcp-linear.md`, `<project>/linear.md` and removes `@linear.md` / `@mcp-linear.md` lines from `CLAUDE.md` / `AGENTS.md`
 **Notes**: Never creates labels or statuses, never deletes issues. Descriptions must use the As-is / To-be template, and the description is never edited at the Plan stage. If `linear-server` was installed, you must authenticate via `/mcp` (OAuth) yourself; a server added mid-session shows up only in a new session.

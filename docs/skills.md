@@ -253,6 +253,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 4. 작업 전에 댓글과 그 안의 `+++ Agent notes` 블록을 모두 읽는다
 5. 진행에 맞춰 상태를 바꾸고 정해진 양식으로 댓글을 단다: 계획 → `Plan` + Plan 댓글, 작업 → `In Progress`, 막힘 → BLOCKED 댓글 후 중단, 완료 → 커밋 후 Done 댓글 + `Done`(검토가 필요하면 `Feedback`). Done·BLOCKED 댓글에는 이번 작업의 커밋을 짧은 해시로 모두 적는다
 6. 모든 커밋·PR 에 이슈 ID 를 넣는다 (커밋 제목 `✨ [MOLE-123] …`). 브랜치는 `<user>/<issue-id>` 소문자다 (예: `jin/mole-123`)
+7. 다른 사람을 멘션·담당자 지정하거나 요청하는 글(BLOCKED `필요` 포함)은 대상과 문구를 먼저 보여 주고 승인받은 뒤 쓴다 (질문). 이슈·댓글 문장은 늘 합니다체로 정중하게 쓴다
 
 **결과물**: Linear 이슈·댓글·상태, 프로젝트 `CLAUDE.md` 의 `Linear project:` 줄, 설치 시 user scope MCP `linear-server`, 정리 시 `~/.claude/linear.md`·`~/.claude/mcp-linear.md`·`<project>/linear.md` 삭제와 `CLAUDE.md`·`AGENTS.md` 의 `@linear.md`·`@mcp-linear.md` 줄 제거
 **주의**: 라벨·상태를 만들지 않고 이슈를 삭제하지 않는다. 이슈 설명은 As-is·To-be 양식이 필수고, Plan 단계에서는 설명을 고치지 않는다. `linear-server` 를 설치했으면 `/mcp` 에서 OAuth 인증을 직접 해야 하고, 세션 중 추가한 서버는 새 세션에서 보인다.

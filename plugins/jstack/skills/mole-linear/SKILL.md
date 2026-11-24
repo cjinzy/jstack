@@ -24,10 +24,11 @@ Statuses: `Triage` · `Backlog` · `Todo` · `Plan` · `In Progress` · `Feedbac
    * done → commit first, then Done comment, `Done` + due date (`Feedback` if the user must review). Parent is Done only when all sub-issues are
 7. Git is required: issue ID in every commit and PR. Commit title: `<emoji> [MOLE-123] <title>` (the `commit` skill adds it). Branch: `<user>/<issue-id>` in lowercase (e.g. `jin/mole-123`), `<user>` = the part of the issue's `gitBranchName` before `/`. No title slug. Done / BLOCKED comments list every commit of the task as short hashes (`git log --format=%h`); none → omit the line.
 8. Never create labels/statuses, never delete issues.
+9. Mentioning, assigning, or asking another person (`@` mention, assignee other than me, a request such as BLOCKED `필요`) → show the user the recipient and exact text first; write only after approval.
 
 ## Writing
 
-Short, plain sentences. One fact each, ≤3 lines per section, one term per concept, code names in backticks. Cut what doesn't change what the reader does. Agent detail (file lists, plans, logs) goes in a `+++ Agent notes` block at the end, exempt from these rules.
+Short, plain, polite sentences in 합니다체 (`확인했습니다`, `부탁드립니다`), never 반말 or commands. One fact each, ≤3 lines per section, one term per concept, code names in backticks. Cut what doesn't change what the reader does. Agent detail (file lists, plans, logs) goes in a `+++ Agent notes` block at the end, exempt from these rules.
 
 **Title**: one line, verb form, core change only. No tags, brackets, or trailing period. ~70 chars.
 ✅ `로그인 기한이 지난 사용자에게 오류 화면 대신 재로그인 안내 표시` · ❌ `[BE] 로그인 관련 이슈`
