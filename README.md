@@ -111,7 +111,7 @@ ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL 
 
 - 셸 statusline 의 항목·포맷·색(10단계)을 그대로 보여 주고, `statusline-config.txt` 의 `SHOW_*` 도 따릅니다.
 - 더 보여 주는 것: 5h, 브랜치의 Linear 이슈 ID, 미커밋 파일 수 `●n`, 실행 중인 백그라운드 에이전트 `⚙n`, 진행 중인 턴 시간 `⏱`, 비용(구독이 아닐 때만)
-- 5h·7D 는 API 응답마다 갱신되는 실시간 값입니다(없으면 타이머 캐시). 모델별 7D·`STALE`·경고(`⚠ TOKEN?`, `⏳ RATE`)는 타이머 캐시에서 읽습니다.
+- 5h·7D 는 API 응답마다 갱신되는 실시간 값입니다(없으면 타이머 캐시). 모델별 7D·`STALE`·경고(`⚠`, `⏳ RATE`)는 타이머 캐시에서 읽습니다.
 - 컨텍스트 85%, 한도 90%, 사용 속도 초과(HOT)는 넘는 순간 한 번 알립니다.
 - 셸 statusline 은 따로 지울 필요 없습니다. 기존 사용자도 `/plugin install` 만 하면 다음 세션 시작 때 jstack hook 이 init 이 넣은 `statusLine` 을 빼고(settings.json 백업), mod 를 끄거나 지우면 되돌립니다. 직접 바꾼 statusLine 은 건드리지 않습니다. mod 를 지원하는 Claude Code 버전이 필요합니다.
 - push 전에 써 보기: `claude --plugin-dir <저장소>/plugins/mod-statusline` (셸 statusline 과 함께 보입니다)

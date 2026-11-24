@@ -179,9 +179,9 @@ function usageSegment(label: string, labelColor: string, percent: number, resets
   return [{ text: `${label}:`, color: labelColor }, { text: ` ${pct}%${fmtReset(resetsAt, nowMs)}`, color: levelColor(pct) }, ...tail]
 }
 
-/** 캐시 오류 경고 (셸과 같음): ⚠ TOKEN? · ⏳ RATE 2h */
+/** 캐시 오류 경고: ⚠ (토큰 — 셸은 ⚠ TOKEN?) · ⏳ RATE 2h (셸과 같음) */
 function warning(u: UsageCache, nowMs: number): Part | undefined {
-  if (u.errorReason && TOKEN_ERRORS.has(u.errorReason)) return { text: '⚠ TOKEN?', color: C.yellow }
+  if (u.errorReason && TOKEN_ERRORS.has(u.errorReason)) return { text: '⚠', color: C.yellow }
   if (u.errorReason !== 'rate_limited') return undefined
   const s = u.firstErrorAt ? nowMs / 1000 - u.firstErrorAt : 0
   const dur = s >= 3600 ? ` ${Math.floor(s / 3600)}h` : s >= 60 ? ` ${Math.floor(s / 60)}m` : ''

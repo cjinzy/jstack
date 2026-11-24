@@ -41,7 +41,7 @@
       "name": "mod-statusline",
       "source": "./plugins/mod-statusline",
       "description": "Status band above the prompt: rate limits with pacing, context, location, model, background agents, turn timer (replaces the shell statusline)",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": {
         "name": "jin",
         "email": "jin@stealthmole.com"

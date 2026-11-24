@@ -111,7 +111,7 @@ ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL 
 
 - Shows the shell statusline's items, formats and 10-step colors as they are, and follows `SHOW_*` in `statusline-config.txt`.
 - Adds: 5h, the branch's Linear issue ID, uncommitted file count `●n`, running background agents `⚙n`, elapsed time of the running turn `⏱`, cost (only off a subscription)
-- 5h and 7D are live, updated on every API response (the timer cache when absent). Per-model 7D, `STALE` and warnings (`⚠ TOKEN?`, `⏳ RATE`) come from the timer cache.
+- 5h and 7D are live, updated on every API response (the timer cache when absent). Per-model 7D, `STALE` and warnings (`⚠`, `⏳ RATE`) come from the timer cache.
 - Context 85%, a limit at 90%, and outpacing a limit (HOT) each raise one notice when crossed.
 - No need to remove the shell statusline yourself. Existing users only run `/plugin install`: at the next session start the jstack hook takes out the `statusLine` init wrote (settings.json backed up), and puts it back when the mod is disabled or uninstalled. A statusLine you changed is left alone. Needs a Claude Code version with mod support.
 - Try it before pushing: `claude --plugin-dir <repo>/plugins/mod-statusline` (shows alongside the shell statusline)
