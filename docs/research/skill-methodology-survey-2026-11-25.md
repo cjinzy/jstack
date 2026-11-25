@@ -627,3 +627,24 @@ debug 스킬은 만들지 않는다. gstack 대체 규칙(읽기 전용 확인 �
 - 방법 승자(skill-creator vs writing-skills)는 채택 여부와 별개로 held-out PASS 많은 쪽.
 - `stress-review`: codex 외 CLI 엔 Claude 가 뽑은 diff 만 붙여 보낸다 (소스 파일 전체 전송 없음). Claude 서브에이전트는 읽기 전용 유형으로 띄우고 답을 `agent_run.py --gate-text` 로 판정한다.
 - 시범 결과는 부록 C 에 기록한다 (`WINNER`, `investigate: 채택|제외`, `쪼개기: 채택|제외`).
+
+## 부록 C. 시범 결과 (2026-11-25)
+
+조건: headless Claude Code, opus, 시나리오당 5회, 결정적 채점 (마지막 `ANSWER:` 줄).
+
+### investigate
+
+`WINNER: A` · `investigate: 제외`
+
+held-out 5종, 팔당 n=25:
+
+| 팔 | PASS | 비용 | 자동 발동 | HANDOFF | FORMAT 라벨/가설/인계 |
+|---|---|---|---|---|---|
+| 기준선 | 25/25 | $5.56 | — | 0/5 | 2/0/0 |
+| A (skill-creator) | 25/25 | $5.98 | 15/15 | 0/5 | 22/18/21 |
+| B (writing-skills) | 25/25 | $5.89 | 6/15 | 0/5 | 16/0/12 |
+
+- 기준선이 만점이라 차이 0, margin 1 미달 → 제외. 시나리오 난이도를 dev 3회·held-out 3회 올렸으나 기준선은 계속 만점이었다 (dev 56/56, held-out 45/45).
+- B 는 자동 발동 9/15 미발동 → "발동 안 함" 기록. 방법 승자는 A (사용자 동의).
+- 두 초안 모두 dev 에서는 HANDOFF 3/3, held-out 에서는 0/5 — dev 에 맞춰진 것으로 본다.
+- 한계: PASS 로는 스킬 효과를 볼 수 없었다. 표본이 작아 큰 효과만 잡힌다.
