@@ -22,7 +22,6 @@ REQUIRED_SETTINGS: dict = {
     "statusLine": {
         "type": "command",
         "command": "bash ~/.claude/statusline-command.sh",
-        "refreshInterval": 1,  # 초 — 턴 타이머가 매초 흐르게 (이벤트 없을 때도 다시 그림)
     },
 }
 

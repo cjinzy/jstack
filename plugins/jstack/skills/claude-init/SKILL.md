@@ -86,7 +86,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/merge_settings.py"
 | 키 | 값 | 적용 |
 |----|----|------|
 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `"1"` | 덮어씀 |
-| `statusLine` | `bash ~/.claude/statusline-command.sh`, `refreshInterval: 1` | 덮어씀 |
+| `statusLine` | `bash ~/.claude/statusline-command.sh` | 덮어씀 |
 | `enableAllProjectMcpServers` | `true` | 없을 때만 |
 | `skipDangerousModePermissionPrompt` | `true` | 없을 때만 |
 | `permissions.defaultMode` | `"plan"` | 없을 때만 |

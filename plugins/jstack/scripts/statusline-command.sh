@@ -44,8 +44,6 @@ rl_5h_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty' 
 rl_7d_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty' 2>/dev/null)
 rl_7d_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty' 2>/dev/null)
 WINDOW_5H_SEC=18000
-transcript_path=$(echo "$input" | jq -r '.transcript_path // empty' 2>/dev/null)
-prompt_id=$(echo "$input" | jq -r '.prompt_id // empty' 2>/dev/null)
 WINDOW_7D_SEC=604800
 BLUE=$'\033[0;34m'
 GREEN=$'\033[0;32m'
@@ -260,38 +258,9 @@ if [ "$show_usage" = "1" ]; then
   fi
 fi
 
-# 경과 시간: m:ss, 1시간 넘으면 h:mm:ss
-fmt_elapsed() {
-  local t=$1
-  [ "$t" -lt 0 ] && t=0
-  if [ "$t" -ge 3600 ]; then
-    printf '%d:%02d:%02d' $((t / 3600)) $(((t % 3600) / 60)) $((t % 60))
-  else
-    printf '%d:%02d' $((t / 60)) $((t % 60))
-  fi
-}
-
-# 턴 시간: statusline 엔 "작업 중" 신호가 없어 transcript 로 판단한다.
-#   시작 = 현재 prompt_id 의 첫 줄 timestamp → 흐르는 시간 (refreshInterval 로 매초 갱신)
-#   끝   = 그 뒤 system/turn_duration → 그 턴이 걸린 시간으로 고정 (회색)
-# ponytail: Esc 중단은 turn_duration 을 남기지 않아 다음 입력 전까지 계속 올라간다.
-turn_text=""
-if [ -n "$prompt_id" ] && [ -f "$transcript_path" ]; then
-  turn_line=$(grep -n -m1 -F "\"promptId\":\"${prompt_id}\"" "$transcript_path" 2>/dev/null | cut -d: -f1)
-  if [ -n "$turn_line" ]; then
-    turn_ms=$(tail -n +"$turn_line" "$transcript_path" | grep -m1 -F '"subtype":"turn_duration"' | jq -r '.durationMs // empty' 2>/dev/null)
-    if [ -n "$turn_ms" ]; then
-      turn_text="${GRAY}⏱ $(fmt_elapsed $((${turn_ms%.*} / 1000)))${RESET}"
-    else
-      turn_epoch=$(parse_iso_to_epoch "$(sed -n "${turn_line}p" "$transcript_path" | jq -r '.timestamp // empty' 2>/dev/null)")
-      [ -n "$turn_epoch" ] && turn_text="⏱ $(fmt_elapsed $(($(date +%s) - turn_epoch)))"
-    fi
-  fi
-fi
-
 separator="${GRAY} │ ${RESET}"
 
-# Line 1: dir │ branch │ model │ effort │ version │ ⏱ 턴 시간
+# Line 1: dir │ branch │ model │ effort │ version
 line1=""
 [ -n "$dir_text" ] && line1="${dir_text}"
 
@@ -313,11 +282,6 @@ fi
 if [ -n "$version_text" ]; then
   [ -n "$line1" ] && line1="${line1}${separator}"
   line1="${line1}${version_text}"
-fi
-
-if [ -n "$turn_text" ]; then
-  [ -n "$line1" ] && line1="${line1}${separator}"
-  line1="${line1}${turn_text}"
 fi
 
 # Line 2: ctx │ cache │ 5h │ 7D │ model(Fable) │ warning

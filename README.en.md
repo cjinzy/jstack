@@ -4,7 +4,7 @@
 
 A Claude Code plugin with 13 skills for planning, specs, project documentation (SoT), review and commits, plus 2 hooks and a usage statusline.
 
-> Version `6.4.4` · License MIT
+> Version `6.4.5` · License MIT
 
 ## Install
 
@@ -76,7 +76,7 @@ Always active once the plugin is installed.
 
 | Event | What it does |
 |---|---|
-| `SessionStart` | Auto-updates this marketplace repo (`git pull --ff-only`), re-registers the usage timer if init installed it and it went missing, moves copies left in `~/.claude/skills` by old versions to a backup folder, puts init's shell `statusLine` back if it is missing (removed by the old `mod-statusline`; settings.json backed up) |
+| `SessionStart` | Auto-updates this marketplace repo (`git pull --ff-only`), re-registers the usage timer if init installed it and it went missing, moves copies left in `~/.claude/skills` by old versions to a backup folder, puts init's shell `statusLine` back if it is missing (removed by the old `mod-statusline`; settings.json backed up), removes the old `statusLine.refreshInterval: 1` that init used to add (settings.json backed up) |
 | `UserPromptSubmit` | In plan mode, asks whether to plan in ambition mode; if the message contains `ambition`/`앰비션`, loads the `ambition` skill |
 
 ## Statusline
@@ -85,7 +85,7 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 
 ![statusline — usage values blurred](docs/images/statusline.png)
 
-- Line 1: directory, branch, model, effort, Claude Code version, turn time `⏱` (ticks every second while running, then freezes gray at the turn's length; after an Esc interrupt it keeps ticking until the next prompt)
+- Line 1: directory, branch, model, effort, Claude Code version
 - Line 2: context use, cache-read tokens, 5-hour and 7-day usage with time to reset and pacing, per-model weekly limit, cache errors (`⚠` token · `⏳ RATE`)
 - Colors move from green to red in 10 steps as usage grows.
 - Hide the directory, branch or usage with `SHOW_DIRECTORY=0`, `SHOW_BRANCH=0`, `SHOW_USAGE=0` in `~/.claude/statusline-config.txt` (missing keys stay shown).

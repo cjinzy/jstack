@@ -4,7 +4,7 @@
 
 Claude Code 플러그인입니다. 계획, 스펙, 프로젝트 문서화(SoT), 리뷰, 커밋을 돕는 스킬 13개와 hook 2개, 사용량 statusline 을 담았습니다.
 
-> 버전 `6.4.4` · 라이선스 MIT
+> 버전 `6.4.5` · 라이선스 MIT
 
 ## 설치
 
@@ -76,7 +76,7 @@ claude plugin install jstack@jstack
 
 | 이벤트 | 하는 일 |
 |---|---|
-| `SessionStart` | 이 마켓플레이스 저장소 자동 업데이트(`git pull --ff-only`), init 이 설치한 사용량 타이머가 사라졌으면 재등록, 예전 버전이 `~/.claude/skills` 에 남긴 사본을 백업 폴더로 이동, init 의 셸 `statusLine` 이 빠져 있으면 복원 (예전 `mod-statusline` 이 뺀 것, settings.json 백업) |
+| `SessionStart` | 이 마켓플레이스 저장소 자동 업데이트(`git pull --ff-only`), init 이 설치한 사용량 타이머가 사라졌으면 재등록, 예전 버전이 `~/.claude/skills` 에 남긴 사본을 백업 폴더로 이동, init 의 셸 `statusLine` 이 빠져 있으면 복원 (예전 `mod-statusline` 이 뺀 것, settings.json 백업), init 이 넣은 옛 `statusLine.refreshInterval: 1` 제거 (settings.json 백업) |
 | `UserPromptSubmit` | plan 모드면 ambition 계획 여부를 묻게 하고, 메시지에 `ambition`/`앰비션` 이 있으면 `ambition` 스킬을 로드 |
 
 ## Statusline
@@ -85,7 +85,7 @@ claude plugin install jstack@jstack
 
 ![statusline — 사용량 수치는 블러 처리](docs/images/statusline.png)
 
-- 1줄: 디렉토리, 브랜치, 모델, effort, Claude Code 버전, 턴 시간 `⏱` (진행 중엔 매초 흐르고, 끝나면 걸린 시간으로 회색 고정. Esc 로 중단하면 다음 입력까지 계속 흐름)
+- 1줄: 디렉토리, 브랜치, 모델, effort, Claude Code 버전
 - 2줄: 컨텍스트 사용률, 캐시 읽기 토큰, 5시간·7일 사용률·리셋까지 남은 시간·속도, 모델별 주간 한도, 캐시 오류(`⚠` 토큰 · `⏳ RATE`)
 - 사용률에 따라 녹색 → 빨강 10단계로 색이 바뀝니다.
 - 디렉토리·브랜치·사용량은 `~/.claude/statusline-config.txt` 에 `SHOW_DIRECTORY=0`·`SHOW_BRANCH=0`·`SHOW_USAGE=0` 으로 끕니다 (빠진 키는 표시).

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""세션 시작 시 구버전 스킬 사본 정리 + statusLine 복원 + 사용량 타이머 복구 + marketplace 자동 업데이트.
+"""세션 시작 시 구버전 스킬 사본 정리 + statusLine 복원 + 옛 refreshInterval 제거 + 사용량 타이머 복구 + marketplace 자동 업데이트.
 
 SessionStart hook (hooks/hooks.json). stdout 은 대화 컨텍스트에 주입되므로 쓰지 않는다.
 """
@@ -32,7 +32,9 @@ LEGACY_SKILLS = {"jin-claude-init", "jin-commit", "jin-interview", "manage-skill
 SETTINGS_FILE = Path(".claude/settings.json")
 SETTINGS_BACKUP_DIR = Path(".claude/backups")
 # init 이 넣는 statusLine (merge_settings.REQUIRED_SETTINGS 와 같은 값)·스크립트 (sync_repo 가 복사 = init 이력)
-OUR_STATUSLINE = {"type": "command", "command": "bash ~/.claude/statusline-command.sh", "refreshInterval": 1}
+OUR_STATUSLINE = {"type": "command", "command": "bash ~/.claude/statusline-command.sh"}
+# init 6.4.3–6.4.4 가 넣은 매초 갱신 값 — 이 값일 때만 우리 것으로 보고 지운다
+LEGACY_REFRESH_INTERVAL_SEC = 1
 STATUSLINE_SCRIPT = Path(".claude/statusline-command.sh")
 
 
@@ -87,6 +89,30 @@ def retire_legacy_skills() -> None:
             print(f"[jstack] warning: retire {src} failed: {e!r}", file=sys.stderr)
 
 
+def load_settings(home: Path) -> dict | None:
+    """settings.json 을 읽는다. 없거나 깨졌거나 객체가 아니면 None (hook 은 조용히 건너뛴다)."""
+    try:
+        settings = json.loads((home / SETTINGS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return settings if isinstance(settings, dict) else None
+
+
+def write_settings(home: Path, settings: dict, what: str) -> None:
+    """settings.json 을 백업(~/.claude/backups/)한 뒤 원자적으로 바꿔 쓴다."""
+    path = home / SETTINGS_FILE
+    try:
+        backup = home / SETTINGS_BACKUP_DIR / f"settings_backup_{datetime.now():%Y%m%d_%H%M%S_%f}.json"
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, backup)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        os.replace(tmp, path)  # 원자적 교체 — 도중에 죽어도 settings.json 이 반쯤 쓰이지 않게
+        print(f"[jstack] {what}; backup {backup}", file=sys.stderr)
+    except OSError as e:
+        print(f"[jstack] warning: {what} failed: {e!r}", file=sys.stderr)
+
+
 def restore_statusline() -> None:
     """init 의 셸 statusLine 이 빠져 있으면 되돌린다 (init 이력 = statusline-command.sh 있을 때만).
 
@@ -95,26 +121,33 @@ def restore_statusline() -> None:
     ponytail: 마이그레이션 — 팀 전원이 6.4.3 이상이면 지운다.
     """
     home = Path.home()
-    path = home / SETTINGS_FILE
-    try:
-        settings = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return
-    if not isinstance(settings, dict) or "statusLine" in settings:
+    settings = load_settings(home)
+    if settings is None or "statusLine" in settings:
         return
     if not (home / STATUSLINE_SCRIPT).is_file():
         return
     settings["statusLine"] = OUR_STATUSLINE
-    try:
-        backup = home / SETTINGS_BACKUP_DIR / f"settings_backup_{datetime.now():%Y%m%d_%H%M%S_%f}.json"
-        backup.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, backup)
-        tmp = path.with_name(path.name + ".tmp")
-        tmp.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        os.replace(tmp, path)  # 원자적 교체 — 도중에 죽어도 settings.json 이 반쯤 쓰이지 않게
-        print(f"[jstack] statusLine restored; backup {backup}", file=sys.stderr)
-    except OSError as e:
-        print(f"[jstack] warning: statusLine restore failed: {e!r}", file=sys.stderr)
+    write_settings(home, settings, "statusLine restored")
+
+
+def drop_refresh_interval() -> None:
+    """init 이 넣은 `statusLine.refreshInterval: 1` 을 지운다 — statusline 매초 실행을 멈춘다.
+
+    6.4.3–6.4.4 init 이 턴 타이머용으로 넣었다 (6.4.5 에서 타이머와 함께 제거). 우리 command 이고
+    값이 1 일 때만 지운다 — 다른 command·다른 간격은 사용자 설정이라 건드리지 않는다.
+    ponytail: 마이그레이션 — 팀 전원이 6.4.5 이상이면 지운다.
+    """
+    home = Path.home()
+    settings = load_settings(home)
+    status_line = settings.get("statusLine") if settings else None
+    if not isinstance(status_line, dict):
+        return
+    if status_line.get("command") != OUR_STATUSLINE["command"]:
+        return
+    if status_line.get("refreshInterval") != LEGACY_REFRESH_INTERVAL_SEC:
+        return
+    del status_line["refreshInterval"]
+    write_settings(home, settings, "statusLine.refreshInterval removed")
 
 
 def saved_interval(home: Path) -> int:
@@ -155,6 +188,7 @@ def main() -> None:
     """메인 진입점."""
     retire_legacy_skills()  # 빠름 — 사본이 plugin 스킬을 가리기 전에
     restore_statusline()  # 빠름 — 파일 하나
+    drop_refresh_interval()  # 빠름 — 같은 파일
     ensure_timer()  # 빠름 — 느린 git pull 보다 먼저
     auto_update()
 
