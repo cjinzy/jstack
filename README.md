@@ -85,7 +85,7 @@ claude plugin install jstack@jstack
 
 ![statusline — 사용량 수치는 블러 처리](docs/images/statusline.png)
 
-- 1줄: 디렉토리, 브랜치, 모델, effort, Claude Code 버전
+- 1줄: 디렉토리, 브랜치, 모델, effort, Claude Code 버전, 턴 시간 `⏱` (진행 중엔 매초 흐르고, 끝나면 걸린 시간으로 회색 고정. Esc 로 중단하면 다음 입력까지 계속 흐름)
 - 2줄: 컨텍스트 사용률, 캐시 읽기 토큰, 5시간·7일 사용률·리셋까지 남은 시간·속도, 모델별 주간 한도, 캐시 오류(`⚠` 토큰 · `⏳ RATE`)
 - 사용률에 따라 녹색 → 빨강 10단계로 색이 바뀝니다.
 - 디렉토리·브랜치·사용량은 `~/.claude/statusline-config.txt` 에 `SHOW_DIRECTORY=0`·`SHOW_BRANCH=0`·`SHOW_USAGE=0` 으로 끕니다 (빠진 키는 표시).

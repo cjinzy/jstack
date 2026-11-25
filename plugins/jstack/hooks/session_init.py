@@ -32,7 +32,7 @@ LEGACY_SKILLS = {"jin-claude-init", "jin-commit", "jin-interview", "manage-skill
 SETTINGS_FILE = Path(".claude/settings.json")
 SETTINGS_BACKUP_DIR = Path(".claude/backups")
 # init 이 넣는 statusLine (merge_settings.REQUIRED_SETTINGS 와 같은 값)·스크립트 (sync_repo 가 복사 = init 이력)
-OUR_STATUSLINE = {"type": "command", "command": "bash ~/.claude/statusline-command.sh"}
+OUR_STATUSLINE = {"type": "command", "command": "bash ~/.claude/statusline-command.sh", "refreshInterval": 1}
 STATUSLINE_SCRIPT = Path(".claude/statusline-command.sh")
 
 

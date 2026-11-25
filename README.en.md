@@ -85,7 +85,7 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 
 ![statusline — usage values blurred](docs/images/statusline.png)
 
-- Line 1: directory, branch, model, effort, Claude Code version
+- Line 1: directory, branch, model, effort, Claude Code version, turn time `⏱` (ticks every second while running, then freezes gray at the turn's length; after an Esc interrupt it keeps ticking until the next prompt)
 - Line 2: context use, cache-read tokens, 5-hour and 7-day usage with time to reset and pacing, per-model weekly limit, cache errors (`⚠` token · `⏳ RATE`)
 - Colors move from green to red in 10 steps as usage grows.
 - Hide the directory, branch or usage with `SHOW_DIRECTORY=0`, `SHOW_BRANCH=0`, `SHOW_USAGE=0` in `~/.claude/statusline-config.txt` (missing keys stay shown).
