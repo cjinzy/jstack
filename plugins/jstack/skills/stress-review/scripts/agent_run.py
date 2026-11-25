@@ -56,15 +56,17 @@ BOUNDARY_NO_REPO = (
     "Do not create or modify any file.\n\n"
 )
 
+DEFAULT_LOGIN_AGENT = "codex"  # --agent 없이 `-- <명령>` 으로 부른 경우
 AUTH_PATTERN = re.compile(r"auth|login|unauthori[sz]ed|401", re.IGNORECASE)
 SEVERITY_PATTERN = re.compile(r"\[(P[0-3])\]|\b(P[0-3]):")  # review.md 태그 형식만: [P1] / P1:
 BLOCKING = {"P0", "P1"}
 
 
-def parse_events(stdout: str) -> dict:
+def parse_events(stdout: str, jsonl: bool = True) -> dict:
     """codex --json JSONL 을 transcript·토큰·세션·완료 여부로 요약한다.
 
     JSON 이 아닌 줄은 스키마 변경 대비로 transcript 에 그대로 남긴다.
+    jsonl=False (평문 CLI) 면 JSON 처럼 보이는 줄도 답이다 — 해석하지 않는다.
     """
     lines: list[str] = []
     tokens = 0
@@ -78,7 +80,7 @@ def parse_events(stdout: str) -> dict:
         if not raw:
             continue
         try:
-            obj = json.loads(raw)
+            obj = json.loads(raw) if jsonl else None
         except json.JSONDecodeError:
             lines.append(raw)
             continue
@@ -261,7 +263,8 @@ def main(argv: list[str]) -> int:
     finally:
         if empty_dir:
             empty_dir.cleanup()
-    events = parse_events(out)
+    plain = bool(args.agent) and reviewer_config.AGENTS[args.agent].output == "text"
+    events = parse_events(out, jsonl=not plain)
     last = output_file(cmd)
     last_message = last.read_text(errors="replace") if last and last.exists() else None
     status = status_of(code, events, last_message or "")
@@ -290,7 +293,8 @@ def main(argv: list[str]) -> int:
         print(f"GATE: {review_gate(status, text)}")
     if code != 0 and err.strip():
         if AUTH_PATTERN.search(err):
-            print("HINT: 인증 오류 가능 — `codex login` 후 재시도.")
+            name = args.agent or DEFAULT_LOGIN_AGENT
+            print(f"HINT: 인증 오류 가능 — `{name} login` 등 {name} 로그인 후 재시도.")
         print("STDERR:")
         for line in err.strip().splitlines()[:STDERR_EXCERPT_LINES]:
             print(f"  {line}")
