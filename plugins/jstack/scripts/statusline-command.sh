@@ -38,6 +38,13 @@ app_version=$(echo "$input" | jq -r '.version // empty' 2>/dev/null)
 effort_level=$(echo "$input" | jq -r '.effort.level // empty' 2>/dev/null)
 context_used=$(echo "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)
 cache_read=$(echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // empty' 2>/dev/null)
+# 실시간 한도 (구독, 첫 API 응답부터): 사용률 % + 리셋 epoch 초. 없으면 타이머 캐시.
+rl_5h_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty' 2>/dev/null)
+rl_5h_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty' 2>/dev/null)
+rl_7d_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty' 2>/dev/null)
+rl_7d_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty' 2>/dev/null)
+WINDOW_5H_SEC=18000
+WINDOW_7D_SEC=604800
 BLUE=$'\033[0;34m'
 GREEN=$'\033[0;32m'
 GRAY=$'\033[0;90m'
@@ -142,13 +149,11 @@ level_color() {
   eval "echo \"\$LEVEL_${n}\""
 }
 
-# 주간 리셋 남은 시간: ≥1일 " →ND/NH", 미만 " →H:MM"
-weekly_reset_display() {
-  local epoch remain_sec
+# 리셋까지 남은 시간 (epoch 초): ≥1일 " →ND/NH", 미만 " →H:MM"
+reset_display() {
+  local remain_sec
   [ -z "$1" ] && return
-  epoch=$(parse_iso_to_epoch "$1")
-  [ -z "$epoch" ] && return
-  remain_sec=$((epoch - $(date +%s)))
+  remain_sec=$((${1%.*} - $(date +%s)))
   [ "$remain_sec" -le 0 ] && return
   if [ "$remain_sec" -ge 86400 ]; then
     echo " →$((remain_sec / 86400))D/$(( (remain_sec % 86400) / 3600 ))H"
@@ -157,16 +162,40 @@ weekly_reset_display() {
   fi
 }
 
-# usage 세그먼트: label color pct resets_at [suffix]
+# usage 세그먼트: label color pct resets_epoch [suffix]
 usage_segment() {
   local pct_int
   pct_int=$(printf "%.0f" "$3" 2>/dev/null || echo 0)
-  echo "${2}${1}:${RESET} $(level_color "$pct_int")${pct_int}%$(weekly_reset_display "$4")${RESET}${5}"
+  echo "${2}${1}:${RESET} $(level_color "$pct_int")${pct_int}%$(reset_display "$4")${RESET}${5}"
 }
 
+# pacing 라벨: chill|on_track|hot
+zone_label() {
+  case "$1" in
+    chill)    echo " ${LEVEL_1}CHILL${RESET}" ;;
+    on_track) echo " ${LEVEL_5}PACE${RESET}" ;;
+    hot)      echo " ${LEVEL_10}HOT${RESET}" ;;
+  esac
+}
+
+# 실시간 pacing: pct resets_epoch window_sec. burn = 사용률 ÷ 창 경과율,
+# fetch_claude_usage.calculate_pacing 과 같은 0.8 / 1.2. 창 초반 5% 는 판정 안 함 (burn 이 튐).
+live_pace() {
+  [ -z "$2" ] && return
+  zone_label "$(awk -v p="$1" -v r="${2%.*}" -v w="$3" -v n="$(date +%s)" 'BEGIN {
+    e = (w - (r - n)) / w
+    if (e < 0.05) exit
+    b = p / 100 / e
+    print (b < 0.8 ? "chill" : b < 1.2 ? "on_track" : "hot")
+  }')"
+}
+
+usage_5h_text=""
 usage_7d_text=""
 model_usage_text=""
 if [ "$show_usage" = "1" ]; then
+  [ -n "$rl_5h_pct" ] && usage_5h_text=$(usage_segment "5h" "$VIOLET" "$rl_5h_pct" "$rl_5h_reset" "$(live_pace "$rl_5h_pct" "$rl_5h_reset" "$WINDOW_5H_SEC")")
+  [ -n "$rl_7d_pct" ] && usage_7d_text=$(usage_segment "7D" "$VIOLET" "$rl_7d_pct" "$rl_7d_reset" "$(live_pace "$rl_7d_pct" "$rl_7d_reset" "$WINDOW_7D_SEC")")
   cache_file="$HOME/.claude/.usage-cache.json"
   stale_threshold=1800  # 30분
 
@@ -185,28 +214,22 @@ if [ "$show_usage" = "1" ]; then
     model_resets=$(jq -r '.seven_day_model.resets_at // empty' "$cache_file" 2>/dev/null)
     error_reason=$(jq -r '.error_reason // empty' "$cache_file" 2>/dev/null)
 
-    if [ -n "$util_7d" ]; then
-      pacing_7d_icon=""
-      case "$pacing_7d" in
-        chill)    pacing_7d_icon=" ${LEVEL_1}CHILL${RESET}" ;;
-        on_track) pacing_7d_icon=" ${LEVEL_5}PACE${RESET}" ;;
-        hot)      pacing_7d_icon=" ${LEVEL_10}HOT${RESET}" ;;
-      esac
-      usage_7d_text=$(usage_segment "7D" "$VIOLET" "$util_7d" "$resets_7d" "${pacing_7d_icon}${stale_mark}")
+    if [ -n "$util_7d" ] && [ -z "$usage_7d_text" ]; then
+      usage_7d_text=$(usage_segment "7D" "$VIOLET" "$util_7d" "$(parse_iso_to_epoch "$resets_7d")" "$(zone_label "$pacing_7d")${stale_mark}")
     fi
 
-    # 모델별 주간 한도 (예: Fable)
+    # 모델별 주간 한도 (예: Fable) — 실시간 값이 없어 늘 캐시
     if [ -n "$model_label" ] && [ -n "$model_util" ]; then
-      model_usage_text=$(usage_segment "$model_label" "$AMBER" "$model_util" "$model_resets" "$stale_mark")
+      model_usage_text=$(usage_segment "$model_label" "$AMBER" "$model_util" "$(parse_iso_to_epoch "$model_resets")" "$stale_mark")
     fi
-  else
-    # 캐시 파일 없음
+  elif [ -z "$usage_7d_text" ]; then
+    # 실시간 값도 캐시 파일도 없음
     usage_7d_text="${VIOLET}7D:${RESET} ${GRAY}--%${RESET}"
   fi
 
   token_warn_text=""
   if [ "$error_reason" = "token_needs_relogin" ] || [ "$error_reason" = "token_expired" ] || [ "$error_reason" = "refresh_failed" ]; then
-    token_warn_text="${YELLOW}⚠ TOKEN?${RESET}"
+    token_warn_text="${YELLOW}⚠${RESET}"
   elif [ "$error_reason" = "rate_limited" ]; then
     # Rate limit 지속 시간 계산 (first_error_at 기준)
     rate_duration=""
@@ -220,8 +243,8 @@ if [ "$show_usage" = "1" ]; then
         rate_duration=" $((rate_secs / 60))m"
       fi
     fi
-    # last-good fallback: 캐시에 7D 없으면 last-good에서 표시
-    if [ -z "$util_7d" ]; then
+    # last-good fallback: 실시간·캐시 7D 가 없으면 last-good에서 표시
+    if [ -z "$usage_7d_text" ]; then
       last_good="$HOME/.claude/.usage-last-good.json"
       if [ -f "$last_good" ]; then
         lg_util=$(jq -r '.seven_day.utilization // empty' "$last_good" 2>/dev/null)
@@ -261,13 +284,18 @@ if [ -n "$version_text" ]; then
   line1="${line1}${version_text}"
 fi
 
-# Line 2: ctx │ cache │ 7D │ model(Fable) │ warning
+# Line 2: ctx │ cache │ 5h │ 7D │ model(Fable) │ warning
 line2=""
 [ -n "$context_text" ] && line2="${context_text}"
 
 if [ -n "$cached_text" ]; then
   [ -n "$line2" ] && line2="${line2}${separator}"
   line2="${line2}${cached_text}"
+fi
+
+if [ -n "$usage_5h_text" ]; then
+  [ -n "$line2" ] && line2="${line2}${separator}"
+  line2="${line2}${usage_5h_text}"
 fi
 
 if [ -n "$usage_7d_text" ]; then

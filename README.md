@@ -4,7 +4,7 @@
 
 Claude Code 플러그인입니다. 계획, 스펙, 프로젝트 문서화(SoT), 리뷰, 커밋을 돕는 스킬 13개와 hook 2개, 사용량 statusline 을 담았습니다.
 
-> 버전 `6.4.2` · 라이선스 MIT
+> 버전 `6.4.3` · 라이선스 MIT
 
 ## 설치
 
@@ -86,11 +86,11 @@ claude plugin install jstack@jstack
 ![statusline — 사용량 수치는 블러 처리](docs/images/statusline.png)
 
 - 1줄: 디렉토리, 브랜치, 모델, effort, Claude Code 버전
-- 2줄: 컨텍스트 사용률, 캐시 읽기 토큰, 7일 사용률·리셋까지 남은 시간·속도, 모델별 주간 한도
+- 2줄: 컨텍스트 사용률, 캐시 읽기 토큰, 5시간·7일 사용률·리셋까지 남은 시간·속도, 모델별 주간 한도, 캐시 오류(`⚠` 토큰 · `⏳ RATE`)
 - 사용률에 따라 녹색 → 빨강 10단계로 색이 바뀝니다.
 - 디렉토리·브랜치·사용량은 `~/.claude/statusline-config.txt` 에 `SHOW_DIRECTORY=0`·`SHOW_BRANCH=0`·`SHOW_USAGE=0` 으로 끕니다 (빠진 키는 표시).
 
-사용량은 `fetch-claude-usage` 가 가져옵니다. Claude Code 로그인 토큰(`~/.claude/.credentials.json` 또는 macOS Keychain)으로 `https://api.anthropic.com/api/oauth/usage` 를 호출하고, 결과를 5분 동안 `~/.claude/.usage-cache.json` 에 캐시합니다. 구독(Pro/Max/Team/Enterprise) 계정이 필요합니다. `claude setup-token` 토큰은 이 API 의 `user:profile` 권한이 없어(403) 쓰지 못합니다 — 모델별 7D 를 보려면 `/login` 도 해 두세요.
+5시간·7일 사용률은 Claude Code 가 statusline 에 넘기는 실시간 값(`rate_limits`, 첫 API 응답부터)을 먼저 씁니다. 그 전이나 모델별 한도는 `fetch-claude-usage` 캐시에서 읽습니다. `fetch-claude-usage` 는 Claude Code 로그인 토큰(`~/.claude/.credentials.json` 또는 macOS Keychain)으로 `https://api.anthropic.com/api/oauth/usage` 를 호출하고, 결과를 5분 동안 `~/.claude/.usage-cache.json` 에 캐시합니다. 구독(Pro/Max/Team/Enterprise) 계정이 필요합니다. `claude setup-token` 토큰은 이 API 의 `user:profile` 권한이 없어(403) 쓰지 못합니다 — 모델별 7D 를 보려면 `/login` 도 해 두세요.
 
 ## Mods (선택 설치)
 

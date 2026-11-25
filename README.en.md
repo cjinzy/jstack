@@ -4,7 +4,7 @@
 
 A Claude Code plugin with 13 skills for planning, specs, project documentation (SoT), review and commits, plus 2 hooks and a usage statusline.
 
-> Version `6.4.2` · License MIT
+> Version `6.4.3` · License MIT
 
 ## Install
 
@@ -86,11 +86,11 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 ![statusline — usage values blurred](docs/images/statusline.png)
 
 - Line 1: directory, branch, model, effort, Claude Code version
-- Line 2: context use, cache-read tokens, 7-day usage with time to reset and pacing, per-model weekly limit
+- Line 2: context use, cache-read tokens, 5-hour and 7-day usage with time to reset and pacing, per-model weekly limit, cache errors (`⚠` token · `⏳ RATE`)
 - Colors move from green to red in 10 steps as usage grows.
 - Hide the directory, branch or usage with `SHOW_DIRECTORY=0`, `SHOW_BRANCH=0`, `SHOW_USAGE=0` in `~/.claude/statusline-config.txt` (missing keys stay shown).
 
-Usage comes from `fetch-claude-usage`. It reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 5 minutes in `~/.claude/.usage-cache.json`. Needs a subscription account (Pro/Max/Team/Enterprise). A `claude setup-token` token lacks this API's `user:profile` scope (403) — for per-model 7D, also `/login`.
+5-hour and 7-day usage come first from the live values Claude Code passes the statusline (`rate_limits`, from the first API response). Before that, and for per-model limits, it reads the `fetch-claude-usage` cache. `fetch-claude-usage` reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 5 minutes in `~/.claude/.usage-cache.json`. Needs a subscription account (Pro/Max/Team/Enterprise). A `claude setup-token` token lacks this API's `user:profile` scope (403) — for per-model 7D, also `/login`.
 
 ## Mods (optional)
 
