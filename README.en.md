@@ -54,7 +54,7 @@ Most skills work as-is in any project. These three assume the author's environme
 Run `/jstack:claude-init`; it asks before each step. Details: [docs/skills.en.md#claude-init](docs/skills.en.md#claude-init)
 
 1. Checks what is already installed → runs only the missing steps
-2. Asks consent to overwrite files and which optional plugins to install (picking `mod-statusline` uses the [mod](#mods-optional) instead of the shell statusline; the usage timer stays)
+2. Asks consent to overwrite files and which optional plugins to install
 3. Installs plugins — 3 required (`context-mode`, `serena`, `i-have-adhd`) + the optional ones you picked
 4. Clones this repo to `~/.claude/.jin-claude-repo/` → copies the statusline, `~/.claude/CLAUDE.md` and its include files, installs the usage timer (macOS launchd / Linux systemd)
 5. Merges `~/.claude/settings.json`
@@ -65,7 +65,7 @@ Keys written to `settings.json`:
 
 | Applied | Keys |
 |---|---|
-| Overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` (skipped while `mod-statusline` is enabled; init's own value is removed, a custom one kept) |
+| Always overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` |
 | Only if missing | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
 
 `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` connect project `.mcp.json` servers without approval and skip the bypass-permissions mode warning. Set them to `false` to opt out — init keeps your value.
@@ -76,7 +76,7 @@ Always active once the plugin is installed.
 
 | Event | What it does |
 |---|---|
-| `SessionStart` | Auto-updates this marketplace repo (`git pull --ff-only`), re-registers the usage timer if init installed it and it went missing, moves copies left in `~/.claude/skills` by old versions to a backup folder, takes init's shell `statusLine` out while `mod-statusline` is enabled and puts it back when it is off (settings.json backed up) |
+| `SessionStart` | Auto-updates this marketplace repo (`git pull --ff-only`), re-registers the usage timer if init installed it and it went missing, moves copies left in `~/.claude/skills` by old versions to a backup folder, puts init's shell `statusLine` back if it is missing (removed by the old `mod-statusline`; settings.json backed up) |
 | `UserPromptSubmit` | In plan mode, asks whether to plan in ambition mode; if the message contains `ambition`/`앰비션`, loads the `ambition` skill |
 
 ## Statusline
@@ -92,31 +92,6 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 
 5-hour and 7-day usage come first from the live values Claude Code passes the statusline (`rate_limits`, from the first API response). Before that, and for per-model limits, it reads the `fetch-claude-usage` cache. `fetch-claude-usage` reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 5 minutes in `~/.claude/.usage-cache.json`. Needs a subscription account (Pro/Max/Team/Enterprise). A `claude setup-token` token lacks this API's `user:profile` scope (403) — for per-model 7D, also `/login`.
 
-## Mods (optional)
-
-The same marketplace carries mods as separate plugins. Install only what you want (pick them among `claude-init`'s optional plugins, or directly):
-
-```
-/plugin install mod-statusline@jstack
-```
-
-### `mod-statusline`
-
-A band above the prompt that replaces the shell statusline above. No jq or shell runs; it draws in the terminal, the desktop app and VS Code.
-
-```
-jstack │ ⎇ jin/mole-123 MOLE-123 ●3 │ Opus 5.5 │ xhigh │ v2.1.331 │ ⚙ 2 │ ⏱ 3:12
-ctx: 72% │ cache: 45.6K │ 5h: 42% →1:20 CHILL │ 7D: 28% →1D/14H CHILL │ Fable: 18% →1D/14H
-```
-
-- Collapses to one row when it fits the terminal width (`⚙` and `⏱` move to the end).
-- Shows the shell statusline's items, formats and 10-step colors as they are, and follows `SHOW_*` in `statusline-config.txt`.
-- Adds: 5h, the branch's Linear issue ID, uncommitted file count `●n`, running background agents `⚙n`, elapsed time of the running turn `⏱`, cost (only off a subscription)
-- 5h and 7D are live, updated on every API response (the timer cache when absent). Per-model 7D, `STALE` and warnings (`⚠`, `⏳ RATE`) come from the timer cache.
-- Context 85%, a limit at 90%, and outpacing a limit (HOT) each raise one notice when crossed.
-- No need to remove the shell statusline yourself. Existing users only run `/plugin install`: at the next session start the jstack hook takes out the `statusLine` init wrote (settings.json backed up), and puts it back when the mod is disabled or uninstalled. A statusLine you changed is left alone. Needs a Claude Code version with mod support.
-- Try it before pushing: `claude --plugin-dir <repo>/plugins/mod-statusline` (shows alongside the shell statusline)
-
 ## Development
 
 Test files are local-only via `.gitignore` (not in the clone).
@@ -127,7 +102,6 @@ uv run ruff check src/ tests/             # lint
 uv run pytest tests/                      # statusline and usage tests
 for d in plugins/jstack/skills/*/scripts; do (cd "$d" && uv run pytest -q); done   # skill script tests
 claude plugin validate .                  # validate marketplace and plugin
-claude plugin test plugins/mod-statusline # mod tests
 ```
 
 ## Layout
@@ -139,7 +113,6 @@ plugins/jstack/
   skills/<skill>/SKILL.md         skills (with scripts/, templates/)
   hooks/                          SessionStart and UserPromptSubmit hooks
   scripts/                        statusline, timer installer
-plugins/mod-<name>/               optional mods (hooks/register.tsx)
 src/jin_claude/                   fetch-claude-usage (usage CLI)
 docs/skills.en.md                 how each skill works
 ```

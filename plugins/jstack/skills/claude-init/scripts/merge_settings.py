@@ -1,7 +1,6 @@
 """settings.json deep merge 스크립트.
 
 REQUIRED_SETTINGS(팀 필수) 는 기존 값을 덮어쓰고, DEFAULT_SETTINGS(개인 선호) 는 없을 때만 넣는다.
-statusLine 은 mod-statusline 이 켜져 있으면 쓰지 않고, 우리 값일 때만 제거한다 (커스텀 보존).
 전역 "hooks" 는 구버전 jin-hooks/ 항목만 제거한다 (개인 hooks 보존, 현재는 plugin hooks.json 이 관리).
 변경 시 settings_backup_<YYYYMMDD>.json 백업 후 쓰고, 키 단위 diff 를 report_changes 에 기록한다.
 diff 기준은 `report_changes.py --snapshot` 시점(Step 2 plugin 설치 전) 원본, 없으면 현재 파일.
@@ -17,7 +16,7 @@ from report_changes import diff_dicts, load_baseline, track_write
 
 SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
-# 팀 공통 동작에 필요 → 덮어쓴다 (statusLine 예외: required_settings).
+# 팀 공통 동작에 필요 → 항상 덮어쓴다.
 REQUIRED_SETTINGS: dict = {
     "env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"},
     "statusLine": {
@@ -40,30 +39,6 @@ DEFAULT_SETTINGS: dict = {
 
 # 구버전(≤3.x) sync 가 settings.json 에 직접 등록한 hook 스크립트 경로.
 LEGACY_HOOK_MARKER = "/.claude/jin-hooks/"
-
-# 셸 statusline 을 대체하는 선택 플러그인 (preflight.OPTIONAL_PLUGINS 키).
-STATUSLINE_MOD = "mod-statusline@jstack"
-STATUSLINE_KEY = "statusLine"
-
-
-def required_settings(settings: dict) -> dict:
-    """적용할 팀 필수 키. statusline mod 가 켜져 있으면(enabledPlugins) statusLine 제외.
-
-    init 선택이 아닌 켜짐으로 판단 — /plugin 으로만 켠 경우도 같고, SessionStart hook
-    (hooks/session_init.py swap_statusline) 과 같은 기준이라 서로 되돌리지 않는다.
-    설치 실패면 꺼져 있으니 셸 statusline 이 남는다.
-    """
-    enabled = settings.get("enabledPlugins")
-    if isinstance(enabled, dict) and enabled.get(STATUSLINE_MOD) is True:
-        return {k: v for k, v in REQUIRED_SETTINGS.items() if k != STATUSLINE_KEY}
-    return REQUIRED_SETTINGS
-
-
-def is_our_statusline(settings: dict) -> bool:
-    """statusLine 이 init 이 넣은 셸 statusline 인지 (사용자 커스텀과 구분)."""
-    current = settings.get(STATUSLINE_KEY)
-    ours = REQUIRED_SETTINGS[STATUSLINE_KEY]["command"]
-    return isinstance(current, dict) and current.get("command") == ours
 
 
 def drop_legacy_hooks(hooks: dict) -> dict:
@@ -118,14 +93,8 @@ def merge_settings(settings_path: Path | None = None) -> dict:
         existing = {}
         print(f"[merge_settings] 설정 파일 없음, 새로 생성: {path}")
 
-    required = required_settings(existing)
     # 기본값 ← 기존 ← 필수 순으로 덮는다: 기존 값이 기본값을 이기고, 필수가 모두를 이긴다.
-    merged = deep_merge(deep_merge(DEFAULT_SETTINGS, existing), required)
-
-    # mod 가 대체 → 우리 셸 statusLine 만 제거, 사용자 커스텀은 보존.
-    if STATUSLINE_KEY not in required and is_our_statusline(merged):
-        del merged[STATUSLINE_KEY]
-        print(f"[merge_settings] {STATUSLINE_KEY} 제거 ({STATUSLINE_MOD} 가 대체)")
+    merged = deep_merge(deep_merge(DEFAULT_SETTINGS, existing), REQUIRED_SETTINGS)
 
     if "hooks" in merged:
         hooks = drop_legacy_hooks(merged["hooks"])
