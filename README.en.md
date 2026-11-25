@@ -4,7 +4,7 @@
 
 A Claude Code plugin with 13 skills for planning, specs, project documentation (SoT), review and commits, plus 2 hooks and a usage statusline.
 
-> Version `6.4.3` · License MIT
+> Version `6.4.4` · License MIT
 
 ## Install
 
