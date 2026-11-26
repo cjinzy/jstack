@@ -17,7 +17,7 @@ claude plugin install jstack@jstack
 
 - 업데이트: `claude plugin update jstack@jstack`
 - 필요: Claude Code CLI, `git`, `python3`
-- 스킬별 추가 요구: `stress-review` 는 외부 AI CLI 가 있으면 쓰고 없으면 Claude 서브에이전트로 돈다 ([Codex CLI](https://github.com/openai/codex) 는 실측, gemini·opencode·copilot·qwen·pi 는 문서 기준 + 첫 사용 때 읽기 전용 카나리), statusline 은 `jq`·`uv`
+- 스킬별 추가 요구: `stress-review` 는 [OpenAI Codex CLI](https://github.com/openai/codex) (없거나 사용량 한도면 Claude 서브에이전트가 대신 검토), statusline 은 `jq`·`uv`
 
 ## 스킬
 
@@ -34,7 +34,7 @@ claude plugin install jstack@jstack
 | | [`sot-create`](docs/skills.md#sot-create) | 인용·검증 가능한 프로젝트 문서셋 `sot/` 생성 |
 | | [`sot-verify`](docs/skills.md#sot-verify) | `sot/` 가 코드와 맞는지 검증·수정 · 직접 호출만 |
 | 리뷰 | [`cleanser`](docs/skills.md#cleanser) | AI 코드 슬롭(디버그 잔재·죽은 코드·과잉 처리) 리포트 |
-| | [`stress-review`](docs/skills.md#stress-review) | 독립 검토자(외부 AI CLI 또는 Claude 서브에이전트)의 2차 의견 (review·challenge·consult) |
+| | [`stress-review`](docs/skills.md#stress-review) | Codex CLI 로 독립 2차 의견 (review·challenge·consult), 못 쓰면 Claude 서브에이전트 |
 | 마무리 | [`commit`](docs/skills.md#commit) | gitmoji + 한국어 커밋 메시지로 커밋 |
 | | [`mole-linear`](docs/skills.md#mole-linear) | Linear 이슈·댓글 작업 규칙. [아래 주의](#작성자-환경이-들어간-부분) |
 | 메타 | [`manage-skills`](docs/skills.md#manage-skills) | 프로젝트용 `verify-*` 검증 스킬 생성·갱신 · 직접 호출만 |

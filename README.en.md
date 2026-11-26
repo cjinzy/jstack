@@ -17,7 +17,7 @@ Restart Claude Code after installing. Call a skill with `/jstack:<skill>`, or ju
 
 - Update: `claude plugin update jstack@jstack`
 - Requires: Claude Code CLI, `git`, `python3`
-- Extra per skill: `stress-review` uses an external AI CLI when installed and falls back to a Claude subagent ([Codex CLI](https://github.com/openai/codex) is tested; gemini, opencode, copilot, qwen and pi follow their docs plus a read-only canary on first use); the statusline needs `jq` and `uv`
+- Extra per skill: `stress-review` needs the [OpenAI Codex CLI](https://github.com/openai/codex) (a Claude subagent reviews instead when it is missing or over its usage limit); the statusline needs `jq` and `uv`
 
 ## Skills
 
@@ -34,7 +34,7 @@ How each skill works, step by step: **[docs/skills.en.md](docs/skills.en.md)**
 | | [`sot-create`](docs/skills.en.md#sot-create) | Builds `sot/`, a citable, checkable project docset |
 | | [`sot-verify`](docs/skills.en.md#sot-verify) | Checks `sot/` still matches the code and fixes it · manual only |
 | Review | [`cleanser`](docs/skills.en.md#cleanser) | Reports AI code slop (debug leftovers, dead code, over-handling) |
-| | [`stress-review`](docs/skills.en.md#stress-review) | Second opinion from an independent reviewer — an external AI CLI or a Claude subagent (review, challenge, consult) |
+| | [`stress-review`](docs/skills.en.md#stress-review) | Independent second opinion from the Codex CLI (review, challenge, consult); a Claude subagent when Codex is unavailable |
 | Finish | [`commit`](docs/skills.en.md#commit) | Commits with a gitmoji + Korean message |
 | | [`mole-linear`](docs/skills.en.md#mole-linear) | Linear issue and comment rules. [See caveats](#parts-tied-to-the-authors-setup) |
 | Meta | [`manage-skills`](docs/skills.en.md#manage-skills) | Creates and updates project `verify-*` check skills · manual only |

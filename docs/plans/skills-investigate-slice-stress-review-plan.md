@@ -60,6 +60,8 @@
 
 **녹일 기법:** ACH · IS/IS NOT(investigate) · 행동 단위 TDD 쪼개기(ambition, walking skeleton 대체) · pre-mortem 레드팀(stress-review). 넷 다 에이전트 대상 측정 근거는 없거나 null — 앞 셋은 측정 원칙으로 거르고, pre-mortem 은 `stress-review` challenge 지시문으로만 넣는다 (기준선 비교 없음).
 
+> **범위 축소 (2026-11-26, 사용자 결정):** `stress-review` 는 codex 전용으로 줄였다. 아래 계획의 다중 CLI 지원(gemini·opencode·copilot·qwen·pi), 검토자 선택·저장(`reviewer_config.py`, `agent` 모드), 카나리, 버전 재검사는 구현했다가 삭제했다 — Task 4·5 의 해당 항목과 Review Focus 1–3 은 더 이상 적용되지 않는다. Claude 서브에이전트는 codex 를 못 쓸 때(미설치·사용량 한도·동의 불가)만 대신 돈다. 스크립트는 `codex_run.py` 하나다.
+
 ## Global Constraints
 
 - 스킬 본문 한국어. 길이는 기본 50줄 안팎에서 시작하고 Task 2 결과로 조정. 길어지면 모드 파일로 분리(`codex-side` 방식). 벤더 상한 500줄.

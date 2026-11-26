@@ -30,14 +30,14 @@ description: jstack 사용 온보딩 — 상황별 워크플로(새 프로젝트
 ## 버그
 1. 재현하는 실패 테스트를 먼저 쓴다. 실패를 확인한다.
 2. 원인을 고친다 (증상 말고). 테스트 통과를 확인한다.
-3. 막히면 `/jstack:stress-review challenge` 로 독립 검토자의 반론 (외부 AI CLI 가 없으면 Claude 서브에이전트).
+3. 막히면 `/jstack:stress-review challenge` 로 Codex 의 반론 (Codex 를 못 쓰면 Claude 서브에이전트).
 
 ## 큰 작업 (여러 영역 · 병렬 · 장기)
 - `/jstack:maestro` — 이 세션은 계획·분배·보고만, 작업은 이름 붙은 하위 세션에 위임. 후속은 같은 세션에, 끝난 세션은 보관. `maestro 종료` 로 마침.
 - 넓은 1회성 작업(전수 audit·일괄 변경·철저한 리뷰)은 프롬프트에 `ultracode` — 여러 에이전트 workflow 로 수행 (토큰 많이 씀).
 
 ## 리뷰 · 정리
-- `/jstack:stress-review review` — 독립 검토자의 2차 의견 (`jin stress`).
+- `/jstack:stress-review review` — Codex 2차 의견 (`jin stress`).
 - `jin cleanser` — AI 코드 슬롭 리포트.
 - `/code-review` (깊이 `low`~`max`), 원격 다중 에이전트 리뷰는 `/code-review ultra` (유료).
 
@@ -59,7 +59,7 @@ description: jstack 사용 온보딩 — 상황별 워크플로(새 프로젝트
 | deepinit | `jin deepinit` | AGENTS.md 생성 |
 | sot-create | `jin sot` | SoT 문서셋 |
 | sot-verify | `/jstack:sot-verify` | SoT 검증 (수동) |
-| stress-review | `jin stress` | 독립 검토자 2차 의견 |
+| stress-review | `jin stress` | Codex 2차 의견 |
 | cleanser | `jin cleanser` | AI 슬롭 리포트 |
 | commit | `jin commit` | gitmoji 커밋 |
 | mole-linear | Linear 작업 시 자동 | Linear 팀 규칙 |
