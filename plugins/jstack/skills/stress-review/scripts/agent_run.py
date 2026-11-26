@@ -12,7 +12,8 @@
   - stdin: 이 스크립트의 stdin 을 그대로 전달. --boundary 면 앞에 파일시스템
     경계 지시문을 붙인다 (프롬프트는 셸 인자가 아닌 stdin 으로만 이동).
   - JSONL 이벤트 파싱 → 사람이 읽는 transcript (--log 파일, 없으면 stdout).
-  - stdout 끝에 상태 블록: STATUS / AGENT_EXIT / TOKENS / SESSION_ID / GATE.
+  - stdout 끝에 상태 블록: STATUS / AGENT_EXIT / TOKENS / SESSION_ID / RETRY_AT / GATE.
+    STATUS: rate_limited = 사용량 한도 (문구를 확인한 CLI 만) → 스킬이 서브에이전트로 대신 돈다.
 
 사용: python3 agent_run.py [--timeout S] [--boundary] [--log F] [--gate]
           --agent <이름> [--mode exec|review|resume] [--scope base:<BASE>|uncommitted|commit:<sha>]
@@ -68,6 +69,8 @@ SEVERITY_PATTERN = re.compile(
     re.MULTILINE,
 )
 BLOCKING = {"P0", "P1"}
+LIMIT_FROM = ("failed", "turn_failed")  # 한도 판정 대상 — 타임아웃·빈 답은 한도가 아니다
+RETRY_AT_PATTERN = re.compile(r"try again (?:at|in) ([^.\n]+)", re.IGNORECASE)
 
 
 def parse_events(stdout: str, jsonl: bool = True) -> dict:
@@ -285,6 +288,13 @@ def main(argv: list[str]) -> int:
     last = output_file(cmd)
     last_message = last.read_text(errors="replace") if last and last.exists() else None
     status = status_of(code, events, last_message or "")
+    retry_at = ""
+    limit = reviewer_config.AGENTS[args.agent].limit_pattern if args.agent else ""
+    failure_text = f"{events['failed']}\n{err}"
+    if limit and status in LIMIT_FROM and re.search(limit, failure_text, re.IGNORECASE):
+        status = "rate_limited"  # 검토 실패가 아니라 한도 — 스킬이 서브에이전트로 대신 돈다
+        found = RETRY_AT_PATTERN.search(failure_text)
+        retry_at = found.group(1).strip() if found else ""
 
     if args.log:
         args.log.write_text(events["transcript"] + "\n")
@@ -298,6 +308,8 @@ def main(argv: list[str]) -> int:
         print(f"SESSION_ID: {events['session_id']}")
     if events["failed"]:
         print(f"TURN_FAILED: {events['failed']}")
+    if retry_at:
+        print(f"RETRY_AT: {retry_at}")
     if status == "timeout":
         print(f"HINT: {args.timeout:.0f}s 초과로 중단. 범위를 줄이거나 effort 를 낮춰 재시도.")
     if args.gate:

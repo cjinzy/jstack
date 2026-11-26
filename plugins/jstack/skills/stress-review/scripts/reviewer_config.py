@@ -65,6 +65,7 @@ class Agent:
     output: str = "text"  # "jsonl" = codex --json, "text" = 평문
     resume: bool = False
     canary: bool = True  # 실측 못 한 CLI — 첫 선택·버전 변경 때 검사
+    limit_pattern: str = ""  # 사용량 한도 오류 문구 (실측·문서로 확인한 것만 — 추측 금지)
 
 
 AGENTS: dict[str, Agent] = {
@@ -77,6 +78,7 @@ AGENTS: dict[str, Agent] = {
         output="jsonl",
         resume=True,
         canary=False,
+        limit_pattern=r"hit your usage limit",  # 0.162.1 실측 (turn.failed)
     ),
     # 기본 모드 headless 는 승인이 필요한 동작을 거부한다. --approval-mode plan 은 headless 에서
     # plan 종료가 자동 승인되고 YOLO 로 넘어가므로 금지 (조사 부록 A).

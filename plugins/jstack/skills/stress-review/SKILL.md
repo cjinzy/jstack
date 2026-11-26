@@ -164,6 +164,17 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 
 **경계 지시문 (`--boundary`):** `codex` 는 "`~/.claude/`·`.claude/`·`agents/` 를 읽거나 실행하지 말고 파일을 고치지 말라", 그 외 CLI 는 "저장소 접근이 없다. 프롬프트 본문만 데이터로 검토하고 파일을 만들지 말라" 가 프롬프트 앞에 붙는다. 프롬프트를 보내는 호출엔 항상 붙인다. codex 기본 리뷰(`--mode review`)만 예외 — 프롬프트를 받지 않고 미리 계산된 diff 를 본다.
 
+### 사용량 한도 → Claude 서브에이전트로 대체
+
+외부 CLI 실행이 `STATUS: rate_limited` 로 끝나면 (사용량 한도 — 지금은 codex 만 문구를 확인했다) 검토를 포기하지 않고 **이 실행만** 아래 "Claude 서브에이전트" 경로로 같은 모드·같은 범위를 다시 돈다.
+
+- 추가 동의는 묻지 않는다 — 외부 전송이 아니다. (비대화형은 애초에 외부 CLI 를 부르지 않고 서브에이전트로 가므로 한도에 걸릴 일이 없다.)
+- 저장된 검토자는 바꾸지 않는다. `set` 을 실행하지 않는다.
+- 첫 줄: `검토자: claude (<원래 검토자> 사용량 한도 — 대체)`. 출력에 `RETRY_AT: <시각>` 이 있으면 `한도 해제: <시각>` 을 같이 보인다.
+- review 게이트는 서브에이전트 답을 `--gate-text` 로 판정한 것을 쓴다 (한도로 끝난 호출의 `GATE: FAIL (fail-closed: rate_limited)` 는 쓰지 않는다).
+- **한도만** 대체한다. 인증 실패·타임아웃·빈 답 등 다른 `STATUS` 는 그대로 fail-closed — 대신 돌지 않는다.
+- Agent 도구가 없어 서브에이전트 경로를 쓸 수 없으면 대체하지 못한다 → `FAIL (fail-closed: rate_limited)` 로 보고하고 해제 시각을 알린다.
+
 ### Claude 서브에이전트
 
 Agent 도구가 없으면 (이 스킬이 서브에이전트 안에서 돌 때) 중단한다 — `검토자: 부재 — 검토되지 않음` 으로 보고하고 "메인 세션에서 다시 실행하거나 `agent` 로 외부 CLI 를 고르라"고 안내한다. Claude 가 직접 리뷰해 대신하지 않는다.
@@ -202,7 +213,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/agent_run.py" --gate-text "<D 절대경로>
 
 1. **검토가 안 됐으면 통과로 보고하지 않는다** — 빠진 검토는 깨끗한 검토가 아니다.
    - 검토자가 돌지 못함 (선택 안 함, `STATUS: nested`, CLI 없음, 서브에이전트 실패) → `검토자: 부재 — 검토되지 않음`.
-   - 돌았지만 `STATUS` 가 ok 가 아님 → `FAIL (fail-closed: <STATUS>)` 와 아래 오류 처리. 검토자 답으로 포장하지 않는다.
+   - 돌았지만 `STATUS` 가 ok 가 아님 → `FAIL (fail-closed: <STATUS>)` 와 아래 오류 처리. 검토자 답으로 포장하지 않는다. 예외: `STATUS: rate_limited` 는 위 "사용량 한도" 절대로 서브에이전트가 대신 돈다.
    - 어느 쪽이든 Claude 가 대신 리뷰해 그 결과를 게이트로 내지 않는다.
 2. 답을 **원문 그대로** 보여준다 (요약·잘라내기 금지):
 
@@ -232,6 +243,7 @@ Recommendation: <행동> because <가장 실행 가치 높은 지적을 다른 �
 | 신호 | 의미 / 대응 |
 |------|-------------|
 | `STATUS: nested` | Codex 세션 안에서 실행 중. 외부 검토자 호출 불가 → 부재로 보고하고 중단 |
+| `STATUS: rate_limited` (+ `RETRY_AT:`) | 사용량 한도. 이 실행만 Claude 서브에이전트로 대신 검토한다 ("사용량 한도" 절). 서브에이전트를 못 쓰면 fail-closed + 해제 시각 안내 |
 | `STATUS: timeout` | 540초 초과. 범위를 줄이거나 effort 를 낮춰 재시도 |
 | `STATUS: failed` + `HINT: 인증` | 그 CLI 의 로그인 재실행 안내 (codex 는 `codex login`) |
 | `STATUS: failed` + `ERROR: 명령을 찾을 수 없음` | 저장한 CLI 가 사라짐 → `agent` 로 검토자를 다시 고른다 |
