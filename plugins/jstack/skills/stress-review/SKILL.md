@@ -101,6 +101,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 
 - `CANARY: pass …` + `SAVED: <이름>` (종료 0) → 그 검토자를 쓴다.
 - `CANARY: fail <이유>` (종료 1) → 저장되지 않았다. 이유를 보여주고 다른 검토자를 고르게 한다.
+- `ERROR: <이름> --version unreadable` (종료 1) → 저장되지 않았다 (카나리도 돌지 않았다). 버전을 못 읽는 CLI 는 버전 변경을 알 수 없어 쓰지 않는다. 다른 검토자를 고르게 한다.
 - `RECHECK: yes` 에서 같은 CLI 를 다시 골라도 `set` 을 실행한다 — 카나리를 다시 돌리고 새 버전을 기록한다.
 - 카나리만 따로 보려면 `reviewer_config.py canary "<이름>"`.
 

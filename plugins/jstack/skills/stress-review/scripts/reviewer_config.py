@@ -141,7 +141,8 @@ def version_of(agent: str, path_env: str | None = None) -> str:
         return ""
     if done.returncode != 0:  # 오류 문구를 버전으로 저장·비교하지 않는다
         return ""
-    return (done.stdout or done.stderr).strip()
+    lines = (done.stdout or done.stderr).strip().splitlines()
+    return lines[0].strip() if lines else ""  # 첫 줄만 — 업데이트 안내 같은 가변 문구 제외
 
 
 def load(path: Path) -> dict | None:
@@ -355,13 +356,16 @@ def main(argv: list[str]) -> int:
         print(f"CANARY: {'pass' if ok else 'fail'} {reason}")
         return 0 if ok else 1
     if argv[:1] == ["set"] and len(argv) == 2 and argv[1] in REVIEWERS:
+        version = "" if argv[1] == CLAUDE_SUBAGENT else version_of(argv[1])
         # 통과 뒤에만 저장 — 문서가 아니라 여기서 강제한다
         if argv[1] in AGENTS and AGENTS[argv[1]].canary:
+            if not version:  # 저장해도 매 실행 재검사(유료 카나리)만 돈다 — 카나리 전에 거부
+                print(f"ERROR: {argv[1]} --version unreadable — 저장하지 않는다")
+                return 1
             ok, reason = canary(argv[1])
             print(f"CANARY: {'pass' if ok else 'fail'} {reason}")
             if not ok:
                 return 1
-        version = "" if argv[1] == CLAUDE_SUBAGENT else version_of(argv[1])
         save(config_path(), argv[1], version)
         print(f"SAVED: {argv[1]}")
         return 0

@@ -212,7 +212,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 3. With no argument, picks the mode. (asks)
 4. For an external CLI, states on every call the mode and scope, what is sent, the paid call, and up to ~9 minutes of runtime, then asks to send. Cancel sends nothing. (asks)
 5. Runs the reviewer read-only. codex runs in a sandbox that can read the repo; other CLIs run in an empty temp folder and get only the diff or question (not an OS sandbox). The Claude subagent uses a read-only agent type. Killed after 540 seconds.
-6. Shows the answer verbatim. `review` adds a gate: `[P0]`/`[P1]` present is FAIL, only `P2`/`P3` is PASS, no tags is UNVERIFIED.
+6. Shows the answer verbatim. `review` adds a gate: `[P0]`/`[P1]` present is FAIL, only `P2`/`P3` is PASS; no tags, or a P0/P1 mention that is not in tag form, is UNVERIFIED.
 7. Claude notes where it agrees or disagrees and gives one `Recommendation:` line. You decide.
 
 **Output**: No repo files change. The reviewer choice is saved in `~/.claude/.jstack-stress-review`. The first line shows `검토자: <name>`.

@@ -69,6 +69,7 @@ SEVERITY_PATTERN = re.compile(
     re.MULTILINE,
 )
 BLOCKING = {"P0", "P1"}
+BARE_BLOCKING = re.compile(r"\bP[01]\b")  # 태그 형태가 아닌 P0/P1 언급
 LIMIT_FROM = ("failed", "turn_failed")  # 한도 판정 대상 — 타임아웃·빈 답은 한도가 아니다
 RETRY_AT_PATTERN = re.compile(r"try again (?:at|in) ([^.\n]+)", re.IGNORECASE)
 
@@ -172,6 +173,9 @@ def review_gate(status: str, text: str) -> str:
         return f"FAIL ({len(blocking)} critical findings)"
     if not tags:
         return "UNVERIFIED (no severity tags; read the output)"
+    if BARE_BLOCKING.search(SEVERITY_PATTERN.sub("", text)):
+        # 인식 못 한 형태(### P1, 표, (P1) …)일 수 있다 — PASS 라고 하지 않는다
+        return "UNVERIFIED (P0/P1 mentioned without a tag; read the output)"
     return "PASS"
 
 
