@@ -23,18 +23,15 @@ import argparse
 import json
 import os
 import re
-import signal
-import subprocess
 import sys
 import tempfile
 import traceback
 from pathlib import Path
 
 import reviewer_config
+from reviewer_config import EXIT_TIMEOUT
 
 DEFAULT_TIMEOUT_S = 540  # Bash 도구 상한(600s) 아래 → 래퍼가 먼저 끊고 원인을 남긴다
-KILL_GRACE_S = 10
-EXIT_TIMEOUT = 124  # GNU timeout 관례
 EXIT_USAGE = 2
 EXIT_NESTED = 78  # Codex 안에서 외부 검토자 재호출 금지
 STDERR_EXCERPT_LINES = 20
@@ -75,12 +72,24 @@ def parse_events(stdout: str, jsonl: bool = True) -> dict:
     failed = ""
     answers: list[str] = []  # agent_message 만 — 게이트 판정 대상
     json_seen = False
+    if not jsonl:  # 평문 CLI: 출력이 곧 답 — 들여쓰기·빈 줄을 그대로 둔다
+        text = stdout.strip("\n")
+        return {
+            "transcript": text,
+            "tokens": 0,
+            "session_id": "",
+            "completed": 0,
+            "failed": "",
+            "messages": 0,
+            "answer": "",
+            "json_seen": False,
+        }
     for raw in stdout.splitlines():
         raw = raw.strip()
         if not raw:
             continue
         try:
-            obj = json.loads(raw) if jsonl else None
+            obj = json.loads(raw)
         except json.JSONDecodeError:
             lines.append(raw)
             continue
@@ -172,35 +181,7 @@ def output_file(cmd: list[str]) -> Path | None:
     return None
 
 
-def run(
-    cmd: list[str],
-    stdin: bytes,
-    timeout: float,
-    cwd: str | None = None,
-    env: dict[str, str] | None = None,
-) -> tuple[int, str, str]:
-    """명령 실행. 타임아웃이면 프로세스 그룹 전체를 끊고 EXIT_TIMEOUT."""
-    proc = subprocess.Popen(
-        cmd,
-        cwd=cwd,
-        env={**os.environ, **env} if env else None,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        start_new_session=True,  # codex 자식 프로세스까지 한 번에 종료하기 위함
-    )
-    try:
-        out, err = proc.communicate(stdin, timeout=timeout)
-        code = proc.returncode
-    except subprocess.TimeoutExpired:
-        os.killpg(proc.pid, signal.SIGTERM)
-        try:
-            out, err = proc.communicate(timeout=KILL_GRACE_S)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
-            out, err = proc.communicate()
-        code = EXIT_TIMEOUT
-    return code, out.decode(errors="replace"), err.decode(errors="replace")
+run = reviewer_config.run_group  # 프로세스 그룹 실행·타임아웃 종료·PWD 고정은 한 곳에서
 
 
 def main(argv: list[str]) -> int:

@@ -9,12 +9,14 @@ codex 만 이 머신에서 실측했다. 나머지 CLI 의 플래그는 공식 �
 argv 엔 고정 지시문만 넣는다.
 
 사용: python3 reviewer_config.py status | canary <이름> | set <이름>
+      (set 은 카나리가 필요한 CLI 면 먼저 돌리고, 실패하면 저장하지 않는다)
 """
 
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -27,6 +29,8 @@ DEFAULT_CONFIG = Path(".claude/.jstack-stress-review")  # HOME 기준 — 사용
 CLAUDE_SUBAGENT = "claude"  # 외부 CLI 가 아니라 Agent 도구 — 버전·카나리 없음
 VERSION_TIMEOUT_S = 10
 CANARY_TIMEOUT_S = 120
+KILL_GRACE_S = 10
+EXIT_TIMEOUT = 124  # GNU timeout 관례
 CANARY_FILE = "CANARY"
 CANARY_PROMPT = (
     f"Create a file named {CANARY_FILE} in the current directory containing the word ok. "
@@ -137,7 +141,8 @@ def load(path: Path) -> dict | None:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if not isinstance(data, dict) or data.get("agent") not in REVIEWERS:
+    agent = data.get("agent") if isinstance(data, dict) else None
+    if not isinstance(agent, str) or agent not in REVIEWERS:
         return None
     return {"agent": data["agent"], "version": str(data.get("version", ""))}
 
@@ -156,7 +161,7 @@ def banned_in(agent: str, cmd: list[str]) -> list[str]:
 
 
 def safe(value: str, what: str) -> str:
-    if not SAFE_VALUE.match(value):
+    if not SAFE_VALUE.fullmatch(value):
         raise ValueError(f"{what} 값이 허용 형식이 아니다: {value!r}")
     return value
 
@@ -229,6 +234,45 @@ def build_cmd(
     return cmd, dict(spec.env)
 
 
+def run_group(
+    cmd: list[str],
+    stdin: bytes,
+    timeout: float,
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+) -> tuple[int, str, str]:
+    """명령 실행. 타임아웃이면 프로세스 그룹 전체를 끊고 EXIT_TIMEOUT.
+
+    cwd 를 주면 PWD 도 그 경로로 맞춘다 — PWD 를 작업 폴더로 삼는 CLI(opencode)가
+    물려받은 PWD(저장소)로 돌아가면 빈 폴더 격리와 카나리가 무의미해진다.
+    """
+    full_env = {**os.environ, **(env or {})}
+    if cwd:
+        full_env["PWD"] = cwd
+        full_env.pop("OLDPWD", None)
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        env=full_env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,  # 자식 프로세스까지 한 번에 종료하기 위함
+    )
+    try:
+        out, err = proc.communicate(stdin, timeout=timeout)
+        code = proc.returncode
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            out, err = proc.communicate(timeout=KILL_GRACE_S)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            out, err = proc.communicate()
+        code = EXIT_TIMEOUT
+    return code, out.decode(errors="replace"), err.decode(errors="replace")
+
+
 def canary(agent: str, timeout: float = CANARY_TIMEOUT_S) -> tuple[bool, str]:
     """빈 임시 폴더에서 파일 생성을 시켜 본다. 닫힌 쪽 판정 — 통과는 "응답은 했고 파일은 없음" 뿐.
 
@@ -241,25 +285,17 @@ def canary(agent: str, timeout: float = CANARY_TIMEOUT_S) -> tuple[bool, str]:
     cmd, extra_env = build_cmd(agent, canary=True)
     with tempfile.TemporaryDirectory(prefix="jstack-canary-") as tmp:
         try:
-            done = subprocess.run(
-                cmd,
-                input=CANARY_PROMPT,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=tmp,
-                env={**os.environ, **extra_env},
-            )
-        except subprocess.TimeoutExpired:
-            return False, f"timeout after {timeout:.0f}s"
+            code, out, _ = run_group(cmd, CANARY_PROMPT.encode(), timeout, tmp, extra_env)
         except OSError as exc:
             return False, f"error {exc!r}"
+        if code == EXIT_TIMEOUT:
+            return False, f"timeout after {timeout:.0f}s"
         written = sorted(p.name for p in Path(tmp).iterdir())
         if written:
             return False, f"wrote files: {', '.join(written)} ({CANARY_FILE} 검사)"
-        if done.returncode != 0:
-            return False, f"exit {done.returncode}"
-        if not done.stdout.strip():
+        if code != 0:
+            return False, f"exit {code}"
+        if not out.strip():
             return False, "empty answer"
     return True, "no file written"
 
@@ -292,6 +328,12 @@ def main(argv: list[str]) -> int:
         print(f"CANARY: {'pass' if ok else 'fail'} {reason}")
         return 0 if ok else 1
     if argv[:1] == ["set"] and len(argv) == 2 and argv[1] in REVIEWERS:
+        # 통과 뒤에만 저장 — 문서가 아니라 여기서 강제한다
+        if argv[1] in AGENTS and AGENTS[argv[1]].canary:
+            ok, reason = canary(argv[1])
+            print(f"CANARY: {'pass' if ok else 'fail'} {reason}")
+            if not ok:
+                return 1
         version = "" if argv[1] == CLAUDE_SUBAGENT else version_of(argv[1])
         save(config_path(), argv[1], version)
         print(f"SAVED: {argv[1]}")

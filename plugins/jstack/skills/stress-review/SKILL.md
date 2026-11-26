@@ -1,6 +1,6 @@
 ---
 name: stress-review
-description: 작성자가 아닌 독립 검토자(설치된 외부 AI CLI — codex·gemini·opencode·copilot·qwen·pi — 또는 Claude 서브에이전트)에게 2차 의견을 받는다 — 현재 diff 코드 리뷰(review, P0/P1 게이트), 깨뜨리기 위한 적대적 검증·pre-mortem(challenge), 자유 질문·계획 검토(consult). 검토자는 읽기 전용으로 돌고, Claude 가 검토자 의견과 자기 의견을 비교해 권고 한 줄을 낸다. "jin stress", "stress review", "스트레스 리뷰", "jin codex", "codex review", "codex challenge", "codex 에게 물어봐", "gemini 에게 물어봐", "2차 의견", "second opinion", "교차 검토", "다른 모델 의견", "레드팀", "pre-mortem" 요청이나, 머지 전 독립 리뷰가 필요하거나 설계·계획을 다른 AI 로 검증하고 싶거나 검토자를 바꾸고 싶을 때 사용한다.
+description: 작성자가 아닌 독립 검토자(설치된 외부 AI CLI — codex·gemini·opencode·copilot·qwen·pi — 또는 Claude 서브에이전트)에게 2차 의견을 받는다 — 현재 diff 코드 리뷰(review, P0/P1 게이트), 깨뜨리기 위한 적대적 검증·pre-mortem(challenge), 자유 질문·계획 검토(consult). 검토자는 읽기 전용으로 돌고, Claude 가 검토자 의견과 자기 의견을 비교해 권고 한 줄을 낸다. "jin stress", "stress review", "스트레스 리뷰", "codex review", "codex challenge", "codex 에게 물어봐", "gemini 에게 물어봐", "2차 의견", "second opinion", "교차 검토", "다른 모델 의견", "레드팀", "pre-mortem" 요청이나, 머지 전 독립 리뷰가 필요하거나 설계·계획을 다른 AI 로 검증하고 싶거나 검토자를 바꾸고 싶을 때 사용한다.
 argument-hint: "[review [focus] | challenge [focus] | agent | <질문>]"
 allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion, Agent
 ---
@@ -29,8 +29,8 @@ allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion, Agent
 | 검토자 | 읽는 범위 | 근거 |
 |--------|-----------|------|
 | `codex` | 저장소 루트 전체, read-only 샌드박스 | 실측 |
-| `gemini` · `opencode` · `copilot` · `qwen` · `pi` | 프롬프트 본문만 — 빈 임시 폴더에서 돈다 | 문서 기준, 실측 없음 → 카나리 |
-| `claude` (서브에이전트) | 저장소 (읽기 전용 유형 `Explore`) | 외부 전송 없음 |
+| `gemini` · `opencode` · `copilot` · `qwen` · `pi` | 프롬프트 본문만 넘긴다 — 빈 임시 폴더에서 돈다 (cwd·`PWD`). OS 샌드박스는 아니라서 CLI 가 절대경로를 읽는 것까지 막지는 못한다 | 문서 기준, 실측 없음 → 카나리 |
+| `claude` (서브에이전트) | 저장소 (읽기 전용 유형 `Explore` — Edit/Write 는 없지만 Bash 는 있어 읽기 전용은 지시 수준이다) | 외부 전송 없음 |
 
 읽기 전용 플래그와 금지 플래그(`--dangerously-*`, `--yolo`, 에이전트별 목록)는 스크립트가 붙이고 막는다. 명령을 손으로 조립하지 않는다 — 그러면 그 보호가 빠진다.
 
@@ -84,24 +84,25 @@ JIN_ARG_END
 | `VALID: no` (첫 실행 · 저장한 CLI 가 사라짐) | 묻는다 |
 | `RECHECK: yes` (CLI 버전이 바뀜) | 묻는다 — 버전이 바뀌면 읽기 전용 동작도 바뀔 수 있다 |
 | 인자가 `agent` | 묻는다 |
-| AskUserQuestion 도구가 없다 (비대화형 `claude -p` 등) | 선택도 전송 동의도 물을 수 없다 → 외부 CLI 는 부르지 않고 **이번 실행만** Claude 서브에이전트로 검토한다. 저장된 선택이 있어도 같다. `set`·`canary` 를 실행하지 않는다. 첫 줄은 `검토자: claude (비대화형 — 저장된 <이름> 대신)`. 멈추거나 "동의 대기"로 끝내지 않는다 |
+| AskUserQuestion 도구가 없다 (비대화형 `claude -p` 등) | 선택도 전송 동의도 물을 수 없다 → 외부 CLI 에 검토를 보내지 않고 **이번 실행만** Claude 서브에이전트로 검토한다 (Step 1 의 설치·버전 확인은 그대로 돈다 — 내용 전송 없음). 저장된 선택이 있어도 같다. `set`·`canary` 를 실행하지 않는다. 첫 줄은 `검토자: claude (비대화형 — 저장된 <이름> 대신)`. 멈추거나 "동의 대기"로 끝내지 않는다 |
 
-**묻기:** AskUserQuestion, 선택지 = `INSTALLED` 의 각 CLI + `Claude 서브에이전트`. `INSTALLED: none` 이어도 중단하지 않는다 — 서브에이전트만 선택지로 낸다. 각 선택지에 위 표의 "읽는 범위"를 한 줄로 적는다.
+**묻기:** AskUserQuestion 은 선택지 2–4개만 받는다.
+- `INSTALLED: none` → 묻지 않는다. 고를 것이 서브에이전트뿐이다 — `claude` 로 정하고 그렇게 알린다.
+- 설치된 CLI 1–3개 → 선택지 = 각 CLI + `Claude 서브에이전트`.
+- 4개 이상 → 앞의 3개 + `Claude 서브에이전트`, 나머지 이름은 질문 문구에 적고 직접 입력("Other")으로 받는다.
+- 각 선택지에 위 표의 "읽는 범위"를 한 줄로 적는다. codex·claude 외 CLI 는 "고르면 그 CLI 로 카나리 호출 1회가 나간다 (저장소 내용 없음)" 도 적는다.
+- 답이 `codex|gemini|opencode|copilot|qwen|pi|claude` 가 아니면 셸에 넣지 않고 다시 묻는다.
 
-**카나리 (codex·claude 외):** 문서로만 확인한 CLI 라서, 실제로 쓰기를 못 하는지 먼저 본다. 빈 임시 폴더에서 "파일을 만들어라"를 시키고, 파일이 생기면 그 CLI 를 거부한다. 저장소 내용은 보내지 않지만 그 CLI 로 호출 1회가 나간다 → 고르기 전에 선택지 설명에 밝힌다. Bash `timeout: 180000` (스크립트 한도 120초).
-
-```bash
-python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" canary "<이름>"
-```
-
-- `CANARY: pass …` (종료 0) → 저장으로.
-- `CANARY: fail <이유>` (종료 1) → 그 CLI 는 쓰지 않는다. 이유를 보여주고 다른 검토자를 고르게 한다. 저장하지 않는다.
-
-**저장:** 카나리가 필요한 CLI 는 pass 한 뒤에만 실행한다 — `set` 자체는 카나리를 확인하지 않는다. `RECHECK: yes` 에서 같은 CLI 를 다시 골라도 실행해야 새 버전이 기록된다.
+**저장 (카나리 포함):** `set` 이 카나리가 필요한 CLI(codex·claude 외)면 먼저 카나리를 돌리고, 통과해야 저장한다. 카나리 = 빈 임시 폴더에서 "파일을 만들어라"를 시켜 파일이 생기면 거부. 문서로만 확인한 CLI 라서 실제로 쓰기를 못 하는지 본다. Bash `timeout: 180000` (스크립트 한도 120초).
 
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 ```
+
+- `CANARY: pass …` + `SAVED: <이름>` (종료 0) → 그 검토자를 쓴다.
+- `CANARY: fail <이유>` (종료 1) → 저장되지 않았다. 이유를 보여주고 다른 검토자를 고르게 한다.
+- `RECHECK: yes` 에서 같은 CLI 를 다시 골라도 `set` 을 실행한다 — 카나리를 다시 돌리고 새 버전을 기록한다.
+- 카나리만 따로 보려면 `reviewer_config.py canary "<이름>"`.
 
 `<이름>` 은 `codex|gemini|opencode|copilot|qwen|pi|claude` 중 하나. 인자가 `agent` 뿐이었으면 `SAVED: <이름>` 을 알리고 끝낸다.
 
@@ -120,7 +121,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 - `검토자: <이름>`, 모드와 범위 (예: `main...HEAD` 의 diff N 커밋 / 미커밋 변경 / 질문 요약)
 - 검토자가 받는 것 — cwd 에 맞게:
   - `codex`: 프롬프트 + 저장소 전체 **읽기** 권한 (read-only 샌드박스) → OpenAI 로 전송
-  - 그 외 CLI: **프롬프트 내용(diff·계획·질문)만** 전송. 빈 임시 폴더에서 돌아 저장소는 읽지 못한다
+  - 그 외 CLI: **프롬프트 내용(diff·계획·질문)만** 넘긴다. 빈 임시 폴더에서 돌아 저장소 경로를 받지 않는다 (OS 샌드박스는 아니다 — CLI 가 스스로 절대경로를 읽는 것까지는 막지 못한다)
 - 유료 호출이며 최대 약 9분 걸릴 수 있음
 
 선택지: `보내기` / `취소`. review 에서 `AHEAD > 0` 이고 `DIRTY > 0` 이면 `미커밋 변경만 리뷰` 선택지를 추가한다. 취소면 아무것도 보내지 않고 끝낸다.
@@ -168,12 +169,12 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 Agent 도구가 없으면 (이 스킬이 서브에이전트 안에서 돌 때) 중단한다 — `검토자: 부재 — 검토되지 않음` 으로 보고하고 "메인 세션에서 다시 실행하거나 `agent` 로 외부 CLI 를 고르라"고 안내한다. Claude 가 직접 리뷰해 대신하지 않는다.
 
 1. Agent 도구를 `subagent_type: "Explore"` (읽기 전용 유형) 로 띄운다. 프롬프트는 모드 파일의 것을 쓰고, 위 "넘기는 것" 규칙을 그대로 지킨다 — 이 대화의 맥락을 요약해 넣고 싶어지는 자리가 여기다. 결론은 넣지 않는다.
-2. 서브에이전트 답 **원문 전체**를 파일로 저장한다. 첫 글자부터 끝 글자까지 그대로 붙인다 — 줄이거나 다시 쓰면 게이트가 검토자가 아니라 Claude 의 글을 판정하게 된다. 본문에 구분자 단독 줄이 있으면 구분자를 바꾼다.
+2. 서브에이전트 답 **원문 전체**를 파일로 저장한다. 첫 글자부터 끝 글자까지 그대로 붙인다 — 줄이거나 다시 쓰면 게이트가 검토자가 아니라 Claude 의 글을 판정하게 된다. 구분자는 실행마다 임의 접미사를 붙여 새로 만든다 (예: `JIN_ANSWER_END_7f3a`) — 답은 diff 를 인용하므로 고정 구분자가 본문에 있을 수 있다.
 
 ```bash
-D=$(mktemp -d) && cat > "$D/last.md" <<'JIN_ANSWER_END'
+D=$(mktemp -d) && cat > "$D/last.md" <<'JIN_ANSWER_END_<임의 4자>'
 <서브에이전트 답 원문>
-JIN_ANSWER_END
+JIN_ANSWER_END_<임의 4자>
 echo "D=$D"
 ```
 

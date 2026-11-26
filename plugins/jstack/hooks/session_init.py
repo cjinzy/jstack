@@ -105,9 +105,11 @@ def write_settings(home: Path, settings: dict, what: str) -> None:
         backup = home / SETTINGS_BACKUP_DIR / f"settings_backup_{datetime.now():%Y%m%d_%H%M%S_%f}.json"
         backup.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, backup)
-        tmp = path.with_name(path.name + ".tmp")
+        target = path.resolve()  # 심링크(dotfile 관리)면 링크가 아니라 원본을 바꾼다
+        tmp = target.with_name(target.name + ".tmp")
         tmp.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        os.replace(tmp, path)  # 원자적 교체 — 도중에 죽어도 settings.json 이 반쯤 쓰이지 않게
+        shutil.copymode(target, tmp)  # 권한 유지 (tmp 는 umask 를 따른다)
+        os.replace(tmp, target)  # 원자적 교체 — 도중에 죽어도 settings.json 이 반쯤 쓰이지 않게
         print(f"[jstack] {what}; backup {backup}", file=sys.stderr)
     except OSError as e:
         print(f"[jstack] warning: {what} failed: {e!r}", file=sys.stderr)

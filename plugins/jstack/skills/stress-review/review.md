@@ -91,6 +91,8 @@ Custom focus:
 <focus 원문>
 ```
 
+`AHEAD > 0` 이고 `DIRTY > 0` 이면 범위는 커밋된 diff(`<BASE>...HEAD`)뿐이다 — 이 경로는 전송 동의(Step 4)를 건너뛰어 고를 기회가 없으니, 결과 첫머리에 "미커밋 변경 N개는 검토하지 않았다" 를 적는다. 미커밋까지 보려면 프롬프트에 `git diff HEAD` 도 범위로 넣는다.
+
 답 원문을 `$D/last.md` 로 저장하고 `agent_run.py --gate-text` 로 판정한다 (SKILL.md "Claude 서브에이전트").
 
 ## 제시
