@@ -55,7 +55,15 @@ BOUNDARY_NO_REPO = (
 
 DEFAULT_LOGIN_AGENT = "codex"  # --agent 없이 `-- <명령>` 으로 부른 경우
 AUTH_PATTERN = re.compile(r"auth|login|unauthori[sz]ed|401", re.IGNORECASE)
-SEVERITY_PATTERN = re.compile(r"\[(P[0-3])\]|\b(P[0-3]):")  # review.md 태그 형식만: [P1] / P1:
+# [P1] / P1: 은 어디서나, **P1** / "P1 - " 는 줄 머리(목록 기호 뒤)에서만 센다.
+# 산문 속 맨 P1 은 세지 않는다. "No [P0] findings" 같은 부정문은 FAIL 로 센다 — 닫힌 쪽 오류.
+_LINE_HEAD = r"^[\s>]*(?:[-*+•]\s+|\d+[.)]\s+)?"
+SEVERITY_PATTERN = re.compile(
+    r"\[(P[0-3])\]|\b(P[0-3]):"
+    rf"|{_LINE_HEAD}(?:\*\*|__)(P[0-3])(?:\*\*|__)"
+    rf"|{_LINE_HEAD}(P[0-3])\s+[-–—]\s",
+    re.MULTILINE,
+)
 BLOCKING = {"P0", "P1"}
 
 
@@ -152,7 +160,7 @@ def review_gate(status: str, text: str) -> str:
     """리뷰 게이트. PASS 는 P2/P3 태그만 있을 때뿐 — 태그 없음은 UNVERIFIED."""
     if status != "ok" or not text.strip():
         return f"FAIL (fail-closed: {status if status != 'ok' else 'empty output'})"
-    tags = [a or b for a, b in SEVERITY_PATTERN.findall(text)]
+    tags = [next(g for g in groups if g) for groups in SEVERITY_PATTERN.findall(text)]
     blocking = [t for t in tags if t in BLOCKING]
     if blocking:
         return f"FAIL ({len(blocking)} critical findings)"
@@ -233,6 +241,12 @@ def main(argv: list[str]) -> int:
 
     stdin = b"" if sys.stdin.isatty() else sys.stdin.buffer.read()
     empty_dir = None
+    if args.agent and not reviewer_config.trusted(args.agent, reviewer_config.config_path()):
+        print(
+            f"STATUS: failed\nERROR: {args.agent} 는 카나리를 통과해 저장된 검토자가 아니다 "
+            f"(미저장·버전 변경) — `reviewer_config.py set {args.agent}` 먼저"
+        )
+        return EXIT_USAGE
     if args.agent and reviewer_config.AGENTS[args.agent].cwd == "empty":
         empty_dir = tempfile.TemporaryDirectory(prefix="jstack-review-")  # 저장소 읽기 차단
         cwd, boundary = empty_dir.name, BOUNDARY_NO_REPO

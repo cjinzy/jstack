@@ -87,7 +87,7 @@ JIN_ARG_END
 | AskUserQuestion 도구가 없다 (비대화형 `claude -p` 등) | 선택도 전송 동의도 물을 수 없다 → 외부 CLI 에 검토를 보내지 않고 **이번 실행만** Claude 서브에이전트로 검토한다 (Step 1 의 설치·버전 확인은 그대로 돈다 — 내용 전송 없음). 저장된 선택이 있어도 같다. `set`·`canary` 를 실행하지 않는다. 첫 줄은 `검토자: claude (비대화형 — 저장된 <이름> 대신)`. 멈추거나 "동의 대기"로 끝내지 않는다 |
 
 **묻기:** AskUserQuestion 은 선택지 2–4개만 받는다.
-- `INSTALLED: none` → 묻지 않는다. 고를 것이 서브에이전트뿐이다 — `claude` 로 정하고 그렇게 알린다.
+- `INSTALLED: none` → 묻지 않는다. 고를 것이 서브에이전트뿐이다 — 이번 실행은 `claude` 로 하고 그렇게 알린다. 저장(`set`)하지 않는다 — 저장하면 나중에 CLI 를 깔아도 다시 묻지 않게 된다.
 - 설치된 CLI 1–3개 → 선택지 = 각 CLI + `Claude 서브에이전트`.
 - 4개 이상 → 앞의 3개 + `Claude 서브에이전트`, 나머지 이름은 질문 문구에 적고 직접 입력("Other")으로 받는다.
 - 각 선택지에 위 표의 "읽는 범위"를 한 줄로 적는다. codex·claude 외 CLI 는 "고르면 그 CLI 로 카나리 호출 1회가 나간다 (저장소 내용 없음)" 도 적는다.
@@ -153,7 +153,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 | `--model`, `--effort` | 검증(Step 1) 통과한 사용자 지정값. `--effort` 는 codex 전용 |
 | `--boundary`, `--gate`, `--log <파일>` | 경계 지시문 / 리뷰 게이트 / transcript 파일 |
 
-**답이 있는 곳:** `codex` 는 `$D/last.md` (`--out`), 그 외 CLI 는 `$D/transcript.log` (평문 출력 전체가 답. 스크립트가 빈 줄과 줄 앞뒤 공백을 지운다).
+**답이 있는 곳:** `codex` 는 `$D/last.md` (`--out`), 그 외 CLI 는 `$D/transcript.log` (평문 출력 전체가 답 — 들여쓰기·빈 줄 그대로).
 
 규칙:
 - **사용자 텍스트는 셸 인자에 절대 넣지 않는다** (Step 1 검증을 통과한 base·sha·모델·effort 만 예외). 프롬프트는 따옴표 붙은 heredoc (`<<'JIN_PROMPT_END'`) 으로 stdin 에만 넣는다. 본문에 `JIN_PROMPT_END` 단독 줄이 있으면 구분자를 바꾼다.
@@ -178,7 +178,7 @@ JIN_ANSWER_END_<임의 4자>
 echo "D=$D"
 ```
 
-3. review 모드면 같은 P0/P1 게이트를 스크립트로 판정한다. 게이트 줄은 이 출력만 쓴다 — Claude 가 답을 읽고 직접 판정하지 않는다.
+3. review 모드면 같은 P0/P1 게이트를 스크립트로 판정한다. 게이트 줄은 이 출력만 쓴다 — Claude 가 답을 읽고 직접 판정하지 않는다. 한계: 이 경로의 게이트는 Claude 가 옮겨 적은 `last.md` 를 판정한다. 옮겨 적다 지적을 빠뜨리면 게이트가 틀리므로, 결과를 보일 때 서브에이전트 답 원문도 그대로 보인다.
 
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/scripts/agent_run.py" --gate-text "<D 절대경로>/last.md"
@@ -223,7 +223,8 @@ Recommendation: <행동> because <가장 실행 가치 높은 지적을 다른 �
 | `STATUS: timeout` | 540초 초과. 범위를 줄이거나 effort 를 낮춰 재시도 |
 | `STATUS: failed` + `HINT: 인증` | 그 CLI 의 로그인 재실행 안내 (codex 는 `codex login`) |
 | `STATUS: failed` + `ERROR: 명령을 찾을 수 없음` | 저장한 CLI 가 사라짐 → `agent` 로 검토자를 다시 고른다 |
-| 종료코드 2 + `usage:` | 인자 오류 (codex 전용 인자를 다른 CLI 에 줌, 검증 안 된 값). 인자를 고친다 — 호출은 나가지 않았다 |
+| 종료코드 2 + `usage:` | 인자 오류 (`--mode review\|resume` 을 다른 CLI 에 줌, 검증 안 된 값). 인자를 고친다 — 호출은 나가지 않았다 |
+| 종료코드 2 + `ERROR: … 저장된 검토자가 아니다` | 카나리 대상 CLI 가 저장돼 있지 않거나 버전이 바뀌었다. `reviewer_config.py set <이름>` (카나리 포함) 뒤 다시 실행 — 호출은 나가지 않았다 |
 | `STDERR` 에 `model ... not supported` / `404 ... does not exist` | 모델 설정 문제. 그 CLI 설정이나 `--model` 값을 고치라고 안내. 통과로 보고하지 않음 |
 | `requires a newer version of Codex` | `codex update` 안내 |
 | `turn_failed` / `no_completion` / `empty` | 검토자가 답을 끝내지 못함. 결과 없음으로 보고, 재시도 제안 |

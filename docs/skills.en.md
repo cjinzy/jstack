@@ -92,7 +92,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 8. Adds a `## Ambition` section to the plan: one item per applied axis, or `N/A — reason`.
 9. Slice: splits the grown plan into pieces. Each piece is one behavior the user sees at the entry point (CLI, API, screen) with one check that runs the entry point directly. No per-layer pieces, no pieces that touch only tests or docs. A trivial task stays one piece. Adds a `## Slice` section to the plan.
 
-**Output**: A `## Ambition` section in the plan.
+**Output**: `## Ambition` and `## Slice` sections in the plan.
 **Notes**: The hook matches `ambition`/`앰비션` as a case-insensitive substring. Merely mentioning the word loads the skill. Results are checked only by external judges (tests, benchmarks, metrics); without one, the goal is not raised.
 
 <a name="maestro"></a>
@@ -216,7 +216,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 7. Claude notes where it agrees or disagrees and gives one `Recommendation:` line. You decide.
 
 **Output**: No repo files change. The reviewer choice is saved in `~/.claude/.jstack-stress-review`. The first line shows `검토자: <name>`.
-**Notes**: The author's conclusions and self-assessment are never passed to the reviewer. In a non-interactive run (`claude -p`), where it cannot ask, it calls no external CLI and reviews with a Claude subagent. Inside a subagent it does not review and tells you to run it from the main session. A failed run, timeout, or empty output counts as review FAIL. Only codex is tested; the other CLIs follow their docs.
+**Notes**: The author's conclusions and self-assessment are never passed to the reviewer. In a non-interactive run (`claude -p`), where it cannot ask, it calls no external CLI and reviews with a Claude subagent. Where the Agent tool is unavailable it does not review and tells you to run it from the main session. On the Claude-subagent path the gate judges the answer as Claude copied it. A failed run, timeout, or empty output counts as review FAIL. Only codex is tested; the other CLIs follow their docs.
 
 ---
 

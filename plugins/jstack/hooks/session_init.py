@@ -4,6 +4,8 @@
 SessionStart hook (hooks/hooks.json). stdout 은 대화 컨텍스트에 주입되므로 쓰지 않는다.
 """
 
+from __future__ import annotations  # `X | None` 주석 — hook 은 시스템 python3(3.9)로도 돈다
+
 import json
 import os
 import shutil

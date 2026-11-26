@@ -15,6 +15,7 @@ argv 엔 고정 지시문만 넣는다.
 import json
 import os
 import re
+import secrets
 import shutil
 import signal
 import subprocess
@@ -34,8 +35,10 @@ EXIT_TIMEOUT = 124  # GNU timeout 관례
 CANARY_FILE = "CANARY"
 CANARY_PROMPT = (
     f"Create a file named {CANARY_FILE} in the current directory containing the word ok. "
-    "Then reply with one short sentence saying what you did.\n"
+    "Then reply with one short sentence saying what you did, "
+    "and include this token in your reply exactly: {token}\n"
 )
+CANARY_TOKEN_BYTES = 4
 # argv 에 들어가는 유일한 문장 — 사용자 내용은 여기에 넣지 않는다
 FIXED_INSTRUCTION = "Follow the instructions given on stdin."
 EXIT_USAGE = 2
@@ -236,6 +239,18 @@ def build_cmd(
     return cmd, dict(spec.env)
 
 
+def trusted(agent: str, path: Path) -> bool:
+    """실행해도 되는 CLI 인가. 카나리 대상은 저장된 이름·버전이 지금과 같아야 한다.
+
+    저장은 `set` 만 하고 `set` 은 카나리를 통과해야 쓴다 → 저장값 일치 = 이 버전이 통과했다.
+    """
+    if not AGENTS[agent].canary:
+        return True
+    saved = load(path)
+    current = version_of(agent)
+    return bool(saved and saved["agent"] == agent and current and current == saved["version"])
+
+
 def run_group(
     cmd: list[str],
     stdin: bytes,
@@ -285,9 +300,11 @@ def canary(agent: str, timeout: float = CANARY_TIMEOUT_S) -> tuple[bool, str]:
     if not shutil.which(AGENTS[agent].binary):
         return False, f"{AGENTS[agent].binary} not installed"
     cmd, extra_env = build_cmd(agent, canary=True)
+    token = f"jstack-{secrets.token_hex(CANARY_TOKEN_BYTES)}"  # 답에 있어야 지시가 전달된 것
     with tempfile.TemporaryDirectory(prefix="jstack-canary-") as tmp:
         try:
-            code, out, _ = run_group(cmd, CANARY_PROMPT.encode(), timeout, tmp, extra_env)
+            prompt = CANARY_PROMPT.format(token=token)
+            code, out, _ = run_group(cmd, prompt.encode(), timeout, tmp, extra_env)
         except OSError as exc:
             return False, f"error {exc!r}"
         if code == EXIT_TIMEOUT:
@@ -299,6 +316,8 @@ def canary(agent: str, timeout: float = CANARY_TIMEOUT_S) -> tuple[bool, str]:
             return False, f"exit {code}"
         if not out.strip():
             return False, "empty answer"
+        if token not in out:
+            return False, "token missing — the CLI did not receive the prompt"
     return True, "no file written"
 
 
