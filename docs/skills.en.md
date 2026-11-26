@@ -216,7 +216,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 7. Claude notes where it agrees or disagrees and gives one `Recommendation:` line. You decide.
 
 **Output**: No repo files change. The reviewer choice is saved in `~/.claude/.jstack-stress-review`. The first line shows `검토자: <name>`.
-**Notes**: The author's conclusions and self-assessment are never passed to the reviewer. In a non-interactive run (`claude -p`), where it cannot ask, it calls no external CLI and reviews with a Claude subagent. Where the Agent tool is unavailable it does not review and tells you to run it from the main session. On the Claude-subagent path the gate judges the answer as Claude copied it. A failed run, timeout, or empty output counts as review FAIL. Only codex is tested; the other CLIs follow their docs.
+**Notes**: The author's conclusions and self-assessment are never passed to the reviewer. In a non-interactive run (`claude -p`), where it cannot ask, it calls no external CLI and reviews with a Claude subagent. Where the Agent tool is unavailable it does not review and tells you to run it from the main session. The Claude subagent saves its own answer to a file, and the gate judges that file. A failed run, timeout, or empty output counts as review FAIL. Only codex is tested; the other CLIs follow their docs.
 
 ---
 

@@ -168,17 +168,29 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 
 Agent 도구가 없으면 (이 스킬이 서브에이전트 안에서 돌 때) 중단한다 — `검토자: 부재 — 검토되지 않음` 으로 보고하고 "메인 세션에서 다시 실행하거나 `agent` 로 외부 CLI 를 고르라"고 안내한다. Claude 가 직접 리뷰해 대신하지 않는다.
 
-1. Agent 도구를 `subagent_type: "Explore"` (읽기 전용 유형) 로 띄운다. 프롬프트는 모드 파일의 것을 쓰고, 위 "넘기는 것" 규칙을 그대로 지킨다 — 이 대화의 맥락을 요약해 넣고 싶어지는 자리가 여기다. 결론은 넣지 않는다.
-2. 서브에이전트 답 **원문 전체**를 파일로 저장한다. 첫 글자부터 끝 글자까지 그대로 붙인다 — 줄이거나 다시 쓰면 게이트가 검토자가 아니라 Claude 의 글을 판정하게 된다. 구분자는 실행마다 임의 접미사를 붙여 새로 만든다 (예: `JIN_ANSWER_END_7f3a`) — 답은 diff 를 인용하므로 고정 구분자가 본문에 있을 수 있다.
+답은 서브에이전트가 **직접** 파일에 쓴다. Claude 는 `last.md` 를 쓰지도 고치지도 않는다 — 옮겨 적다 지적을 빠뜨리면 게이트가 거짓 PASS 가 되기 때문이다.
+
+1. 임시 폴더를 만든다.
 
 ```bash
-D=$(mktemp -d) && cat > "$D/last.md" <<'JIN_ANSWER_END_<임의 4자>'
-<서브에이전트 답 원문>
-JIN_ANSWER_END_<임의 4자>
-echo "D=$D"
+D=$(mktemp -d) && echo "D=$D"
 ```
 
-3. review 모드면 같은 P0/P1 게이트를 스크립트로 판정한다. 게이트 줄은 이 출력만 쓴다 — Claude 가 답을 읽고 직접 판정하지 않는다. 한계: 이 경로의 게이트는 Claude 가 옮겨 적은 `last.md` 를 판정한다. 옮겨 적다 지적을 빠뜨리면 게이트가 틀리므로, 결과를 보일 때 서브에이전트 답 원문도 그대로 보인다.
+2. Agent 도구를 `subagent_type: "Explore"` (읽기 전용 유형) 로 띄운다. 프롬프트는 모드 파일의 것을 쓰고, 위 "넘기는 것" 규칙을 그대로 지킨다 — 이 대화의 맥락을 요약해 넣고 싶어지는 자리가 여기다. 결론은 넣지 않는다. 프롬프트 끝에 아래 저장 지시를 그대로 붙인다 (`<D>`·`<SKILL_DIR>` 은 절대경로로, `<임의 4자>` 는 실행마다 새로):
+
+```
+When your answer is complete, save it yourself. Do not send the answer back as your reply.
+Run this exactly once (the file cannot be overwritten), with your full answer between the delimiter lines:
+
+python3 "<SKILL_DIR>/scripts/agent_run.py" --save-answer "<D>/last.md" <<'JIN_ANSWER_END_<임의 4자>'
+<your full answer, exactly as it should be read>
+JIN_ANSWER_END_<임의 4자>
+
+Reply with only the STATUS and GATE lines the command printed.
+```
+
+3. `<D>/last.md` 를 Read 로 읽어 답으로 쓴다. 파일이 없으면 서브에이전트 실패다 → `검토자: 부재 — 검토되지 않음` (서브에이전트의 회신 글을 답으로 대신 쓰지 않는다).
+4. review 모드면 같은 P0/P1 게이트를 스크립트로 판정한다. 게이트 줄은 이 출력만 쓴다 — Claude 가 답을 읽고 직접 판정하지 않고, 서브에이전트가 회신한 GATE 줄도 쓰지 않는다.
 
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/scripts/agent_run.py" --gate-text "<D 절대경로>/last.md"

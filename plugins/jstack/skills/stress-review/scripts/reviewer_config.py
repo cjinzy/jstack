@@ -12,6 +12,8 @@ argv 엔 고정 지시문만 넣는다.
       (set 은 카나리가 필요한 CLI 면 먼저 돌리고, 실패하면 저장하지 않는다)
 """
 
+from __future__ import annotations
+
 import json
 import os
 import re

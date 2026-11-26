@@ -8,6 +8,8 @@
 어떤 오류에도 출력 없이 종료한다 — 이 hook 이 프롬프트를 막으면 안 된다.
 """
 
+from __future__ import annotations
+
 import json
 import re
 import sys

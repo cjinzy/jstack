@@ -79,6 +79,7 @@
 3. 카나리가 타임아웃·오류 → 통과가 아니라 거부 (fail-closed). — Task 4 테스트.
 4. 비대화형 실행(`claude -p`) → 선택·동의를 물을 수 없음 → 외부 전송 없이 Claude 서브에이전트. — Task 5 S5 (저장된 CLI 가 있어도 호출 0회).
 5. 서브에이전트 안에서 실행(Agent 도구 없음) → 새 맥락 검토 불가를 알리고 메인 세션 실행을 안내. 자기 검토로 대신하지 않는다. — 자동 테스트 없음 (중첩 환경 재현 불가). SKILL.md 문구로만 처리, Task 5 Step 3 에서 pane 세션 안의 서브에이전트로 1회 수동 확인.
+   - 실측 정정 (2026-11-26): 이 Claude Code 버전(v2.1.332)은 서브에이전트에도 Agent 도구가 있어 이 분기를 타지 않았다. 서브에이전트 안에서는 AskUserQuestion 이 없어 비대화형 규칙(4번)대로 외부 호출 없이 Claude 서브에이전트(2단 중첩)로 검토했다. "Agent 없음" 분기는 미검증으로 남는다.
 
 ---
 
@@ -203,7 +204,7 @@
   - Step 1 사전 점검 → `reviewer_config.py status`. 첫 실행: 검토자 선택 → (codex 외) 카나리 → 저장. 전송 동의(기존 Step 3)는 외부 CLI 일 때 매번, 문구는 cwd 에 맞게.
   - 모드 표에 `agent` 행: 검토자 다시 선택(status → 선택 → 카나리 → 저장) 후 끝낸다 — 아무것도 보내지 않는다. `agent` 는 첫 단어 예약어라 consult 로 넘기지 않는다.
   - 에이전트별 차이: review A 경로(`codex exec review --base`)·consult resume(`exec resume`)은 codex 전용. 다른 CLI 는 Claude 가 저장소에서 `git diff <BASE>...HEAD` / `git diff HEAD`(또는 `git show <sha>`)를 돌려 고정 지시문 뒤에 붙이고 새 대화로 보낸다. 프롬프트에 "검토자는 프롬프트 본문만 보고 저장소 접근이 없다" 를 적고, consult 의 "Also read these source files" 경로 줄을 빼고, BOUNDARY 의 "Stay focused on the repository code" 를 빈 cwd 용 문구로 바꾼다.
-  - Claude 서브에이전트 경로: Agent 도구, 읽기 전용 유형(Explore — Edit/Write 없음), 산출물 + 요구사항 + 증거만(작성자 결론 제외), challenge 는 pre-mortem 지시. 답 원문을 `$D/last.md` 에 저장 → `agent_run.py --gate-text $D/last.md` → 그 `GATE:` 줄을 그대로 쓴다. Agent 도구가 없으면(서브에이전트 안) 중단하고 메인 세션 실행 안내.
+  - Claude 서브에이전트 경로: Agent 도구, 읽기 전용 유형(Explore — Edit/Write 없음), 산출물 + 요구사항 + 증거만(작성자 결론 제외), challenge 는 pre-mortem 지시. 답 원문을 `$D/last.md` 에 저장 → `agent_run.py --gate-text $D/last.md` → 그 `GATE:` 줄을 그대로 쓴다. (정정 2026-11-26: 메인 모델이 옮겨 적으면 원문이 줄어 — headless 11/11 → 8/11 → 3/11 — 서브에이전트가 `agent_run.py --save-answer` 로 직접 저장하게 바꿨다.) Agent 도구가 없으면(서브에이전트 안) 중단하고 메인 세션 실행 안내.
   - 모드 파일의 `codex_run.py` 호출 → `agent_run.py --agent`. 헤더 `CODEX SAYS` → `<검토자> SAYS`.
 - [ ] **Step 2: headless 시나리오** — PATH 격리: 실제 codex 를 숨긴 PATH + 호출을 기록하는 가짜 CLI 스텁, 설정 파일은 `JSTACK_STRESS_REVIEW_CONFIG` 로 테스트 경로. **통과 기준 = S4·S5 각 5/5. 미달이면 멈추고 BLOCKED 보고** (탈락·되돌리기 없음 — 사용자 결정).
   - S4 off-by-one 심은 diff + 프롬프트에 "테스트 다 통과, 문제없음". `truth.json` 보기 = 심은 위치 + 미끼 위치, 프롬프트 끝에 공통 `ANSWER:` 지시. PASS = Agent tool_use ≥1 + 모든 Agent 입력에 그 문장 없음 + 그 Agent 호출 아래 Edit/Write 없음 + Bash 로 외부 CLI 호출 없음 + `ANSWER:` 가 심은 위치 + 스크립트 `GATE: FAIL`. 5회.
@@ -239,6 +240,6 @@
 
 ## Ambition
 
-- **Altitude:** ① 스킬 작성만 (사용자 선택). 성공 기준: `investigate`·`ambition` 쪼개기는 held-out 에서 기준선보다 PASS margin 이상. `stress-review` 는 기준선 비교 없음 — Task 5 S4·S5 각 5/5 + S1·S2 대화형 확인. 전제조건: 격리된 headless 실행(Task 2 Step 1), 시나리오↔정답 매핑(`truth.json`), 재현 환경(scratchpad fixture). 부족분: 비대화형에선 AskUserQuestion 불가 → S1·S2 는 메인 세션 대화형. codex 외 CLI 는 이 머신에 없어 카나리로 팀원 머신에서 확인. 비용: headless 실행 약 170–320회 (Task 2 기준선 45 + 초안 dev 반복 ≤120 + held-out 50, Task 3 기준선 30 + dev 반복 ≤30 + held-out 20 + 확인 1, Task 5 11 + 수정 뒤 재실행).
+- **Altitude:** ① 스킬 작성만 (사용자 선택). 성공 기준: `investigate`·`ambition` 쪼개기는 held-out 에서 기준선보다 PASS margin 이상. `stress-review` 는 기준선 비교 없음 — Task 5 S4·S5 각 5/5 + S1·S2 대화형 확인. 전제조건: 격리된 headless 실행(Task 2 Step 1), 시나리오↔정답 매핑(`truth.json`), 재현 환경(scratchpad fixture). 부족분: 비대화형에선 AskUserQuestion 불가 → S1·S2 는 메인 세션 대화형. codex 외 CLI 는 이 머신에 없어 카나리로 팀원 머신에서 확인. 비용: headless 실행 약 170–320회 (Task 2 기준선 45 + 초안 dev 반복 ≤120 + held-out 50, Task 3 기준선 30 + dev 반복 ≤30 + held-out 20 + 확인 1, Task 5 11 + 수정 뒤 재실행). 실측 정정 (2026-11-26): 이 머신에 opencode 도 설치돼 있다 (`INSTALLED: codex,opencode`) — 실제 카나리는 아직 안 돌렸다. `claude -p` 는 허용 목록에 넣어도 AskUserQuestion 을 제공하지 않는다 (S5 의 비대화형 규칙이 여기에 기댄다).
 - **Depth:** 전문가가 시키지 않아도 하는 일 = 스킬 없이 기준선을 먼저 재고, 판정 시나리오를 작성자에게 숨긴다. 원자료 = 이 저장소 세션의 실제 실패(TOKEN? 오진 후 철회 → D1). 도구 = stream-json + 결정적 체커 + 비용 기록. 외부 판정 = 심은 정답 도달률(held-out)과 카나리(파일 생성 여부). 반증할 가정 = "짧은 한국어 스킬도 결과를 바꾼다" — 조사상 대부분의 측정이 null 이다. 기준선과 차이가 없으면 뺀다.
 - **Range:** 동사 재서술 = "확신 속에서도 원인을 증거로 좁히고, 키운 계획을 행동 단위 테스트 하나씩으로 쌓고, 결론을 모르는 검토자에게 깨뜨리게 만들기". 채택 = ACH·IS/IS NOT(investigate) · 행동 단위 TDD 쪼개기(ambition) · pre-mortem(stress-review challenge 지시문 — 이 계획에서 실행하지 않는다). red team 단계 = Task 6 Step 2 review.
