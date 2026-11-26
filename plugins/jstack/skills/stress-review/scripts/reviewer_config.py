@@ -132,6 +132,8 @@ def version_of(agent: str, path_env: str | None = None) -> str:
         )
     except (OSError, subprocess.TimeoutExpired):
         return ""
+    if done.returncode != 0:  # 오류 문구를 버전으로 저장·비교하지 않는다
+        return ""
     return (done.stdout or done.stderr).strip()
 
 
@@ -310,7 +312,9 @@ def status_lines(path: Path) -> list[str]:
         valid, recheck = True, False
     else:
         valid = name in installed
-        recheck = valid and version_of(name) != saved["version"]
+        current = version_of(name)
+        # 버전을 못 읽으면 바뀌었는지 알 수 없다 → 다시 검사
+        recheck = valid and (not current or current != saved["version"])
     return [
         f"SAVED: {name}",
         f"INSTALLED: {','.join(installed) or 'none'}",
