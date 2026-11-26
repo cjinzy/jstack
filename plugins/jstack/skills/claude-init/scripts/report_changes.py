@@ -10,6 +10,8 @@ init 마지막에 이 스크립트를 실행하면 기록을 한국어 요약으
     report_changes.py (main) → 요약 출력 → REPORT_PATH 삭제
 """
 
+from __future__ import annotations  # `X | None` 주석 — SKILL.md 가 시스템 python3(3.9)로도 실행
+
 import difflib
 import json
 import shutil

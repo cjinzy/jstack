@@ -1,11 +1,15 @@
 """settings.json deep merge 스크립트.
 
 REQUIRED_SETTINGS(팀 필수) 는 기존 값을 덮어쓰고, DEFAULT_SETTINGS(개인 선호) 는 없을 때만 넣는다.
-전역 "hooks" 는 구버전 jin-hooks/ 항목만 제거한다 (개인 hooks 보존, 현재는 plugin hooks.json 이 관리).
+옛 init 이 넣은 statusLine.refreshInterval: 1 은 지운다.
+전역 "hooks" 는 구버전 jin-hooks/ 항목만 제거한다
+(개인 hooks 보존, 현재는 plugin hooks.json 이 관리).
 변경 시 settings_backup_<YYYYMMDD>.json 백업 후 쓰고, 키 단위 diff 를 report_changes 에 기록한다.
 diff 기준은 `report_changes.py --snapshot` 시점(Step 2 plugin 설치 전) 원본, 없으면 현재 파일.
 멱등: 이미 병합된 상태면 파일을 다시 쓰지 않는다. stdlib 만 사용.
 """
+
+from __future__ import annotations  # `X | None` 주석 — SKILL.md 가 시스템 python3(3.9)로도 실행
 
 import json
 import sys
@@ -26,7 +30,8 @@ REQUIRED_SETTINGS: dict = {
 }
 
 # 개인 선호 → 키가 없을 때만 넣는다 (재 init 이 사용자 선택을 되돌리지 않게).
-# 보안 완화 2키(프로젝트 .mcp.json 자동 승인·위험 모드 경고 생략)도 여기 — 사용자가 끈 값을 존중한다.
+# 보안 완화 2키(프로젝트 .mcp.json 자동 승인·위험 모드 경고 생략)도 여기
+# — 사용자가 끈 값을 존중한다.
 DEFAULT_SETTINGS: dict = {
     "enableAllProjectMcpServers": True,
     "skipDangerousModePermissionPrompt": True,
@@ -36,6 +41,9 @@ DEFAULT_SETTINGS: dict = {
     "model": "opus",
     "advisorModel": "fable",
 }
+
+# init 6.4.3–6.4.4 가 넣은 statusLine.refreshInterval (session_init 과 같은 값) — 병합 때 지운다.
+LEGACY_REFRESH_INTERVAL_SEC = 1
 
 # 구버전(≤3.x) sync 가 settings.json 에 직접 등록한 hook 스크립트 경로.
 LEGACY_HOOK_MARKER = "/.claude/jin-hooks/"
@@ -47,7 +55,10 @@ def drop_legacy_hooks(hooks: dict) -> dict:
     for event, groups in hooks.items():
         new_groups = []
         for group in groups:
-            entries = [h for h in group.get("hooks", []) if LEGACY_HOOK_MARKER not in h.get("command", "")]
+            entries = [
+                h for h in group.get("hooks", [])
+                if LEGACY_HOOK_MARKER not in h.get("command", "")
+            ]
             if entries:
                 new_groups.append({**group, "hooks": entries})
         if new_groups:
@@ -104,6 +115,16 @@ def merge_settings(settings_path: Path | None = None) -> dict:
             merged["hooks"] = hooks
         else:
             del merged["hooks"]
+
+    # 옛 init(6.4.3–6.4.4)의 매초 갱신 — session_init.drop_refresh_interval 과 같은 조건
+    # (hooks/ 와 scripts/ 는 서로 import 하지 않는다). 병합 후 command 는 항상 우리 것.
+    # True == 1 이라 bool 을 따로 거른다. 새 dict 로 바꿔 existing 을 건드리지 않는다.
+    status_line = merged["statusLine"]
+    interval = status_line.get("refreshInterval")
+    ours = status_line.get("command") == REQUIRED_SETTINGS["statusLine"]["command"]
+    if ours and interval == LEGACY_REFRESH_INTERVAL_SEC and not isinstance(interval, bool):
+        merged["statusLine"] = {k: v for k, v in status_line.items() if k != "refreshInterval"}
+        print("[merge_settings] 옛 statusLine.refreshInterval: 1 제거")
 
     # 보고는 snapshot 기준 대비, 쓰기는 현재 파일 대비 — Step 2 변경도 보고에 포함.
     snapped, raw = load_baseline(path)

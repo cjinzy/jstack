@@ -17,7 +17,7 @@ claude plugin install jstack@jstack
 
 - 업데이트: `claude plugin update jstack@jstack`
 - 필요: Claude Code CLI, `git`, `python3`
-- 스킬별 추가 요구: `stress-review` 는 [OpenAI Codex CLI](https://github.com/openai/codex) (없거나 사용량 한도면 Claude 서브에이전트가 대신 검토), statusline 은 `jq`·`uv`
+- 스킬별 추가 요구: `stress-review` 는 [OpenAI Codex CLI](https://github.com/openai/codex) (미설치·사용량 한도이거나 동의를 물을 수 없으면 Claude 서브에이전트가 대신 검토, 설치됐는데 인증이 없으면 중단), statusline 은 `jq`·`uv`
 
 ## 스킬
 
@@ -34,7 +34,7 @@ claude plugin install jstack@jstack
 | | [`sot-create`](docs/skills.md#sot-create) | 인용·검증 가능한 프로젝트 문서셋 `sot/` 생성 |
 | | [`sot-verify`](docs/skills.md#sot-verify) | `sot/` 가 코드와 맞는지 검증·수정 · 직접 호출만 |
 | 리뷰 | [`cleanser`](docs/skills.md#cleanser) | AI 코드 슬롭(디버그 잔재·죽은 코드·과잉 처리) 리포트 |
-| | [`stress-review`](docs/skills.md#stress-review) | Codex CLI 로 독립 2차 의견 (review·challenge·consult), 못 쓰면 Claude 서브에이전트 |
+| | [`stress-review`](docs/skills.md#stress-review) | Codex CLI 로 독립 2차 의견 (review·challenge·consult), 미설치·사용량 한도이거나 동의를 물을 수 없으면 Claude 서브에이전트 |
 | 마무리 | [`commit`](docs/skills.md#commit) | gitmoji + 한국어 커밋 메시지로 커밋 |
 | | [`mole-linear`](docs/skills.md#mole-linear) | Linear 이슈·댓글 작업 규칙. [아래 주의](#작성자-환경이-들어간-부분) |
 | 메타 | [`manage-skills`](docs/skills.md#manage-skills) | 프로젝트용 `verify-*` 검증 스킬 생성·갱신 · 직접 호출만 |
@@ -65,7 +65,7 @@ claude plugin install jstack@jstack
 
 | 적용 | 키 |
 |---|---|
-| 항상 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` |
+| 항상 덮어씀 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine.type`·`statusLine.command` |
 | 없을 때만 | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
 
 `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뜁니다. 원치 않으면 `false` 로 두세요 — init 이 유지합니다.
@@ -77,7 +77,7 @@ claude plugin install jstack@jstack
 | 이벤트 | 하는 일 |
 |---|---|
 | `SessionStart` | 이 마켓플레이스 저장소 자동 업데이트(`git pull --ff-only`), init 이 설치한 사용량 타이머가 사라졌으면 재등록, 예전 버전이 `~/.claude/skills` 에 남긴 사본을 백업 폴더로 이동, init 의 셸 `statusLine` 이 빠져 있으면 복원 (예전 `mod-statusline` 이 뺀 것, settings.json 백업), init 이 넣은 옛 `statusLine.refreshInterval: 1` 제거 (settings.json 백업) |
-| `UserPromptSubmit` | plan 모드면 ambition 계획 여부를 묻게 하고, 메시지에 `ambition`/`앰비션` 이 있으면 `ambition` 스킬을 로드 |
+| `UserPromptSubmit` | plan 모드면 ambition 계획 여부를 묻게 하고, 메시지에 단어 `ambition`/`앰비션` 이 있으면 `ambition` 스킬을 로드 |
 
 ## Statusline
 
@@ -89,6 +89,7 @@ claude plugin install jstack@jstack
 - 2줄: 컨텍스트 사용률, 캐시 읽기 토큰, 5시간·7일 사용률·리셋까지 남은 시간·속도, 모델별 주간 한도, 캐시 오류(`⚠` 토큰 · `⏳ RATE`)
 - 사용률에 따라 녹색 → 빨강 10단계로 색이 바뀝니다.
 - 디렉토리·브랜치·사용량은 `~/.claude/statusline-config.txt` 에 `SHOW_DIRECTORY=0`·`SHOW_BRANCH=0`·`SHOW_USAGE=0` 으로 끕니다 (빠진 키는 표시).
+- 이전 버전의 `⏱` 턴 시간은 없앴습니다. 이미 설치한 옛 스크립트는 `jin init` 을 다시 실행할 때까지 멈춘 `⏱` 를 보입니다.
 
 5시간·7일 사용률은 Claude Code 가 statusline 에 넘기는 실시간 값(`rate_limits`, 첫 API 응답부터)을 먼저 씁니다. 그 전이나 모델별 한도는 `fetch-claude-usage` 캐시에서 읽습니다. `fetch-claude-usage` 는 Claude Code 로그인 토큰(`~/.claude/.credentials.json` 또는 macOS Keychain)으로 `https://api.anthropic.com/api/oauth/usage` 를 호출하고, 결과를 5분 동안 `~/.claude/.usage-cache.json` 에 캐시합니다. 구독(Pro/Max/Team/Enterprise) 계정이 필요합니다. `claude setup-token` 토큰은 이 API 의 `user:profile` 권한이 없어(403) 쓰지 못합니다 — 모델별 7D 를 보려면 `/login` 도 해 두세요.
 

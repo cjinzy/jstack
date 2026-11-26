@@ -43,18 +43,27 @@ BOUNDARY = (
 
 AUTH_PATTERN = re.compile(r"auth|login|unauthori[sz]ed|401", re.IGNORECASE)
 # [P1] / P1: 은 어디서나, **P1** / "P1 - " 는 줄 머리(목록 기호 뒤)에서만 센다.
+# 대소문자 무시는 [p1] 만 — `p2:`·`p1 - p0` 같은 코드 인용을 태그로 세지 않게.
+# 경계는 ASCII 영숫자 기준 — \b 는 한글을 단어 문자로 봐서 "P1급" 을 놓친다.
 _LINE_HEAD = r"^[\s>]*(?:[-*+•]\s+|\d+[.)]\s+)?"
+_NOT_WORD_BEFORE, _NOT_WORD_AFTER = r"(?<![A-Za-z0-9_])", r"(?![A-Za-z0-9_])"
 SEVERITY_PATTERN = re.compile(
-    r"\[(P[0-3])\]|\b(P[0-3]):"
+    rf"\[(?i:(P[0-3]))\]|{_NOT_WORD_BEFORE}(P[0-3]):"
     rf"|{_LINE_HEAD}(?:\*\*|__)(P[0-3])(?:\*\*|__)"
     rf"|{_LINE_HEAD}(P[0-3])\s+[-–—]\s",
     re.MULTILINE,
 )
 BLOCKING = {"P0", "P1"}
-BARE_BLOCKING = re.compile(r"\bP[01]\b")  # 태그 형태가 아닌 P0/P1 언급
+# 태그 형태가 아닌 P0/P1 언급
+BARE_BLOCKING = re.compile(rf"{_NOT_WORD_BEFORE}P[01]{_NOT_WORD_AFTER}", re.IGNORECASE)
 # 0.162.1 실측 (turn.failed): "You’ve hit your usage limit. … or try again at 10:54 AM."
-LIMIT_PATTERN = re.compile(r"hit your usage limit", re.IGNORECASE)
+# 나머지 둘은 실측 아님 — 감지만 넓힌다 (그 외 실패는 여전히 fail-closed)
+LIMIT_PATTERN = re.compile(r"(?:hit|reached) your usage limit", re.IGNORECASE)
+# turn.failed 에서만 — stderr 의 "Disk quota exceeded"(EDQUOT)는 한도가 아니다
+QUOTA_PATTERN = re.compile(r"quota exceeded", re.IGNORECASE)
 RETRY_AT_PATTERN = re.compile(r"try again (?:at|in) ([^.\n]+)", re.IGNORECASE)
+# resume 셸 인자로 쓰인다 — 이 형식 밖이면 출력하지 않는다 (맨 앞 - 는 옵션으로 읽힌다)
+SESSION_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
 
 
 def parse_events(stdout: str) -> dict:
@@ -137,7 +146,7 @@ def review_gate(status: str, text: str) -> str:
     """리뷰 게이트. PASS 는 P2/P3 태그만 있을 때뿐 — 태그 없음은 UNVERIFIED."""
     if status != "ok" or not text.strip():
         return f"FAIL (fail-closed: {status if status != 'ok' else 'empty output'})"
-    tags = [next(g for g in groups if g) for groups in SEVERITY_PATTERN.findall(text)]
+    tags = [next(g for g in m if g).upper() for m in SEVERITY_PATTERN.findall(text)]
     blocking = [t for t in tags if t in BLOCKING]
     if blocking:
         return f"FAIL ({len(blocking)} critical findings)"
@@ -226,7 +235,8 @@ def main(argv: list[str]) -> int:
     status = status_of(code, events, last_message or "")
     retry_at = ""
     failure_text = f"{events['failed']}\n{err}"
-    if status in ("failed", "turn_failed") and LIMIT_PATTERN.search(failure_text):
+    limited = LIMIT_PATTERN.search(failure_text) or QUOTA_PATTERN.search(events["failed"])
+    if status in ("failed", "turn_failed") and limited:
         status = "rate_limited"  # 검토 실패가 아니라 한도 — 스킬이 서브에이전트로 대신 돈다
         found = RETRY_AT_PATTERN.search(failure_text)
         retry_at = found.group(1).strip() if found else ""
@@ -239,8 +249,9 @@ def main(argv: list[str]) -> int:
     print(f"STATUS: {status}")
     print(f"CODEX_EXIT: {code}")
     print(f"TOKENS: {events['tokens'] or 'unknown'}")
-    if events["session_id"]:
-        print(f"SESSION_ID: {events['session_id']}")
+    sid = events["session_id"]
+    if isinstance(sid, str) and SESSION_ID_PATTERN.fullmatch(sid):
+        print(f"SESSION_ID: {sid}")
     if events["failed"]:
         print(f"TURN_FAILED: {events['failed']}")
     if retry_at:

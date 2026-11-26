@@ -30,7 +30,7 @@ description: jstack 사용 온보딩 — 상황별 워크플로(새 프로젝트
 ## 버그
 1. 재현하는 실패 테스트를 먼저 쓴다. 실패를 확인한다.
 2. 원인을 고친다 (증상 말고). 테스트 통과를 확인한다.
-3. 막히면 `/jstack:stress-review challenge` 로 Codex 의 반론 (Codex 를 못 쓰면 Claude 서브에이전트).
+3. 막히면 `/jstack:stress-review challenge` 로 Codex 의 반론 (미설치·사용량 한도이거나 동의를 물을 수 없으면 Claude 서브에이전트, 설치됐는데 인증이 없으면 중단).
 
 ## 큰 작업 (여러 영역 · 병렬 · 장기)
 - `/jstack:maestro` — 이 세션은 계획·분배·보고만, 작업은 이름 붙은 하위 세션에 위임. 후속은 같은 세션에, 끝난 세션은 보관. `maestro 종료` 로 마침.

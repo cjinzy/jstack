@@ -17,7 +17,7 @@ Restart Claude Code after installing. Call a skill with `/jstack:<skill>`, or ju
 
 - Update: `claude plugin update jstack@jstack`
 - Requires: Claude Code CLI, `git`, `python3`
-- Extra per skill: `stress-review` needs the [OpenAI Codex CLI](https://github.com/openai/codex) (a Claude subagent reviews instead when it is missing or over its usage limit); the statusline needs `jq` and `uv`
+- Extra per skill: `stress-review` needs the [OpenAI Codex CLI](https://github.com/openai/codex) (a Claude subagent reviews instead when it is missing, over its usage limit, or consent cannot be asked; stops if installed without auth); the statusline needs `jq` and `uv`
 
 ## Skills
 
@@ -34,7 +34,7 @@ How each skill works, step by step: **[docs/skills.en.md](docs/skills.en.md)**
 | | [`sot-create`](docs/skills.en.md#sot-create) | Builds `sot/`, a citable, checkable project docset |
 | | [`sot-verify`](docs/skills.en.md#sot-verify) | Checks `sot/` still matches the code and fixes it · manual only |
 | Review | [`cleanser`](docs/skills.en.md#cleanser) | Reports AI code slop (debug leftovers, dead code, over-handling) |
-| | [`stress-review`](docs/skills.en.md#stress-review) | Independent second opinion from the Codex CLI (review, challenge, consult); a Claude subagent when Codex is unavailable |
+| | [`stress-review`](docs/skills.en.md#stress-review) | Independent second opinion from the Codex CLI (review, challenge, consult); a Claude subagent when Codex is missing, over its usage limit, or consent cannot be asked |
 | Finish | [`commit`](docs/skills.en.md#commit) | Commits with a gitmoji + Korean message |
 | | [`mole-linear`](docs/skills.en.md#mole-linear) | Linear issue and comment rules. [See caveats](#parts-tied-to-the-authors-setup) |
 | Meta | [`manage-skills`](docs/skills.en.md#manage-skills) | Creates and updates project `verify-*` check skills · manual only |
@@ -65,7 +65,7 @@ Keys written to `settings.json`:
 
 | Applied | Keys |
 |---|---|
-| Always overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine` |
+| Always overwritten | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `statusLine.type`, `statusLine.command` |
 | Only if missing | `enableAllProjectMcpServers: true`, `skipDangerousModePermissionPrompt: true`, `permissions.defaultMode: plan`, `language: korean`, `effortLevel: high`, `model: opus`, `advisorModel: fable` |
 
 `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` connect project `.mcp.json` servers without approval and skip the bypass-permissions mode warning. Set them to `false` to opt out — init keeps your value.
@@ -77,7 +77,7 @@ Always active once the plugin is installed.
 | Event | What it does |
 |---|---|
 | `SessionStart` | Auto-updates this marketplace repo (`git pull --ff-only`), re-registers the usage timer if init installed it and it went missing, moves copies left in `~/.claude/skills` by old versions to a backup folder, puts init's shell `statusLine` back if it is missing (removed by the old `mod-statusline`; settings.json backed up), removes the old `statusLine.refreshInterval: 1` that init used to add (settings.json backed up) |
-| `UserPromptSubmit` | In plan mode, asks whether to plan in ambition mode; if the message contains `ambition`/`앰비션`, loads the `ambition` skill |
+| `UserPromptSubmit` | In plan mode, asks whether to plan in ambition mode; if the message has the word `ambition`/`앰비션`, loads the `ambition` skill |
 
 ## Statusline
 
@@ -89,6 +89,7 @@ Installed by `claude-init`. Shows session info and Claude subscription usage on 
 - Line 2: context use, cache-read tokens, 5-hour and 7-day usage with time to reset and pacing, per-model weekly limit, cache errors (`⚠` token · `⏳ RATE`)
 - Colors move from green to red in 10 steps as usage grows.
 - Hide the directory, branch or usage with `SHOW_DIRECTORY=0`, `SHOW_BRANCH=0`, `SHOW_USAGE=0` in `~/.claude/statusline-config.txt` (missing keys stay shown).
+- The `⏱` turn timer from earlier versions is gone. An old script already installed shows a frozen `⏱` until you rerun `jin init`.
 
 5-hour and 7-day usage come first from the live values Claude Code passes the statusline (`rate_limits`, from the first API response). Before that, and for per-model limits, it reads the `fetch-claude-usage` cache. `fetch-claude-usage` reads the Claude Code login token (`~/.claude/.credentials.json` or the macOS Keychain), calls `https://api.anthropic.com/api/oauth/usage`, and caches the result for 5 minutes in `~/.claude/.usage-cache.json`. Needs a subscription account (Pro/Max/Team/Enterprise). A `claude setup-token` token lacks this API's `user:profile` scope (403) — for per-model 7D, also `/login`.
 

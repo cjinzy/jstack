@@ -2,7 +2,7 @@
 
 Codex 가 변경을 깨뜨리려 시도한다 — 일반 리뷰가 놓치는 엣지 케이스, race, 보안 구멍, 자원 누수, 조용한 데이터 손상.
 
-범위: `AHEAD > 0` 이면 `git diff <BASE>...HEAD`, 커밋이 없으면 `git diff HEAD` (미커밋 변경). 아래 프롬프트의 diff 명령을 그에 맞게 고른다.
+범위: `AHEAD > 0` 이면 아래 프롬프트 그대로. 커밋이 없으면(미커밋 변경) 첫 문장을 ``Review the uncommitted changes: `git diff HEAD` plus the untracked files listed by `git ls-files --others --exclude-standard ':/'`.`` 로 바꾼다.
 
 ## 실행
 

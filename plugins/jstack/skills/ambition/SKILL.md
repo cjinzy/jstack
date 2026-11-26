@@ -1,6 +1,6 @@
 ---
 name: ambition
-description: Ambition 계획 — 계획을 세 축으로 키운다. Altitude(작업 너머의 결과를 맡기기)·Depth(최고 전문가의 원자료·방법·외부 판정)·Range(동사 재서술로 다른 분야 기법 + red team). 키운 계획은 실행 조각으로 쪼갠다(Slice). plan 모드 ambition 계획 작성 시, 또는 "ambition", "앰비션", "altitude", "depth", "range", "목표 너머", "전문가 수준", "깊게", "다른 분야", "쪼개기", "조각", "slice" 요청 시 사용한다.
+description: Ambition 계획 — 계획을 세 축으로 키운다. Altitude(작업 너머의 결과를 맡기기)·Depth(최고 전문가의 원자료·방법·외부 판정)·Range(동사 재서술로 다른 분야 기법 + red team). 키운 계획은 실행 조각으로 쪼갠다(Slice). plan 모드 ambition 계획 작성 시, 또는 "ambition", "앰비션", "altitude", "depth", "range", "목표 너머", "전문가 수준", "깊게", "다른 분야" 요청 시 사용한다.
 argument-hint: "[altitude|depth|range]"
 ---
 
