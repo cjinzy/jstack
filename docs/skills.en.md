@@ -210,7 +210,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 1. Checks `codex` install and auth, the base branch, commits ahead, and uncommitted changes.
 2. With no argument, picks the mode. With changes, you choose review, adversarial check, or question; without changes, it asks for your question. (asks)
 3. Validates any base, sha, model, or effort you pass. Asks again if a value fails. (asks)
-4. On every call, states the mode and scope, that the prompt and repo content go to OpenAI, the paid call, and up to ~9 minutes of runtime, then asks to send. Cancel sends nothing. (asks)
+4. On every call, states the mode and scope, that the prompt and repo content go to OpenAI, the paid call, and the time limit (up to ~9 minutes by default, up to ~30 minutes for a long review run in the background), then asks to send. Cancel sends nothing. (asks)
 5. Runs Codex in a read-only sandbox. Kills it after 540 seconds. Long reviews run in the background with a longer limit.
 6. Shows Codex's answer verbatim. `review` adds a gate: `[P0]`/`[P1]` present is FAIL, only `P2`/`P3` is PASS; no tags, or a P0/P1 mention that is not in tag form, is UNVERIFIED.
 7. Claude notes where it agrees or disagrees and gives one `Recommendation:` line. You decide.

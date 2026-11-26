@@ -43,7 +43,7 @@ echo "DIRTY: $(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
 ```
 
 - `CODEX: missing` → Codex 없이 아래 "Codex 를 쓸 수 없을 때" 로 간다. 설치 안내(`npm install -g @openai/codex`)를 한 줄 덧붙인다.
-- `AUTH: missing` → 중단. "`codex login` 또는 `CODEX_API_KEY` 설정 후 다시 실행" 안내.
+- `AUTH: missing` → `CODEX: missing` 이 함께 나왔으면 무시한다 (미설치가 우선 — 서브에이전트는 Codex 인증이 필요 없다). Codex 가 설치돼 있을 때만 중단. "`codex login` 또는 `CODEX_API_KEY` 설정 후 다시 실행" 안내.
 - 사용자가 base 브랜치를 지정했으면 그 값을 `BASE` 로 쓴다 (아래 검증 통과 시).
 
 ### 사용자 지정값 검증
@@ -74,7 +74,7 @@ JIN_ARG_END
 호출 전에 AskUserQuestion 으로 **매번** 확인한다. AskUserQuestion 도구가 없으면(비대화형 `claude -p`, 서브에이전트 안) 동의를 물을 수 없다 → Codex 에 보내지 않고 "Codex 를 쓸 수 없을 때" 로 간다. 질문에 다음을 명시:
 - 모드와 범위 (예: `main...HEAD` 의 diff N 커밋 / 미커밋 변경 / 질문 요약)
 - Codex 가 받는 것: 프롬프트 + 저장소 전체 **읽기** 권한 (read-only 샌드박스) → OpenAI 로 전송
-- 유료 호출이며 최대 약 9분 걸릴 수 있음
+- 유료 호출이며 이번 호출의 한도 — 기본 최대 약 9분, 긴 리뷰(백그라운드 + `--timeout 1800`)로 돌릴 거면 최대 약 30분
 
 선택지: `보내기` / `취소`. review 에서 `AHEAD > 0` 이고 `DIRTY > 0` 이면 `미커밋 변경만 리뷰` 선택지를 추가한다. 취소면 아무것도 보내지 않고 끝낸다.
 
