@@ -5,6 +5,8 @@ repo를 https 로 clone/pull 한 후, 개별 파일을 ~/.claude/ 하위에 복�
 <stem>_backup_<YYYYMMDD><ext> 로 백업하고 변경을 report_changes 에 기록한다.
 """
 
+from __future__ import annotations  # `X | None` 주석 — SKILL.md 가 시스템 python3(3.9)로도 실행
+
 import re
 import shutil
 import subprocess

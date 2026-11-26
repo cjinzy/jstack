@@ -9,7 +9,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 | 시작 | [`claude-init`](#claude-init) · [`onboard`](#onboard) |
 | 계획 | [`interview`](#interview) · [`ambition`](#ambition) · [`maestro`](#maestro) |
 | 문서화 | [`deepinit`](#deepinit) · [`sot-create`](#sot-create) · [`sot-verify`](#sot-verify) |
-| 리뷰 | [`cleanser`](#cleanser) · [`codex-side`](#codex-side) |
+| 리뷰 | [`cleanser`](#cleanser) · [`stress-review`](#stress-review) |
 | 마무리 | [`commit`](#commit) · [`mole-linear`](#mole-linear) |
 | 메타 | [`manage-skills`](#manage-skills) |
 
@@ -34,7 +34,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 7. 이전 대비 변경점·백업 경로·되돌리는 법을 보여주고 `onboard` 를 실행한다
 
 **결과물**: `~/.claude/CLAUDE.md`·보조 문서·`statusline-command.sh`·`settings.json` 갱신(바뀐 파일은 `<이름>_backup_<YYYYMMDD>.<확장자>` 로 백업), `~/.claude/.jin-claude-repo/`·`~/.claude/.venv/`·사용량 타이머(launchd/systemd)·`~/.claude/.jin-claude-plugins.json` 생성, 플러그인 설치
-**주의**: 팀 필수 키(`statusLine`·`env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`)는 기존 값을 덮어쓴다. `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 없을 때만 `true` 로 넣는다 — 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뛴다. 선택 해제한 플러그인은 제거하지 않는다. 타이머가 사라지면 세션 시작 hook 이 init 때 고른 주기(`~/.claude/.jin-claude-usage-interval`, 없으면 5분)로 다시 등록한다.
+**주의**: 팀 필수 키(`statusLine.type`·`statusLine.command`·`env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`)는 기존 값을 덮어쓰고, 옛 `statusLine.refreshInterval: 1` 은 지운다. `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 는 없을 때만 `true` 로 넣는다 — 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고 bypass 권한 모드 경고를 건너뛴다. 선택 해제한 플러그인은 제거하지 않는다. 타이머가 사라지면 세션 시작 hook 이 init 때 고른 주기(`~/.claude/.jin-claude-usage-interval`, 없으면 5분)로 다시 등록한다.
 
 <a name="onboard"></a>
 
@@ -78,7 +78,7 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 
 ## `ambition` — 계획을 더 크게가 아니라 더 높게·깊게·넓게 키운다
 
-- **호출**: `/jstack:ambition [altitude|depth|range]` — 축 하나만 적용. 생략하면 세 축 모두. 자동 실행: 프롬프트에 `ambition`·`앰비션` 이 있으면 hook 이 묻지 않고 로드한다. 이 단어 없이 plan 모드면 대화당 한 번 ambition 모드로 계획할지 묻는다. "altitude", "depth", "range", "깊게", "다른 분야" 같은 요청도 Claude 가 알아보면 실행
+- **호출**: `/jstack:ambition [altitude|depth|range]` — 축 하나만 적용. 생략하면 세 축 모두. 자동 실행: 프롬프트에 단어 `ambition`·`앰비션` 이 있으면 hook 이 묻지 않고 로드한다. 이 단어 없이 plan 모드면 대화당 한 번 ambition 모드로 계획할지 묻는다. "altitude", "depth", "range", "깊게", "다른 분야" 같은 요청도 Claude 가 알아보면 실행
 - **언제**: 눈앞의 작업 너머의 결과, 전문가 수준의 깊이, 다른 분야의 기법까지 계획에 담고 싶을 때.
 
 **동작**
@@ -90,9 +90,10 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 6. Range: 산출물을 '하는 일'(동사)로 다시 쓰고, 분야 2–4개와 red team 1개를 꾸린다. 분야마다 실제 기법·도구를 한 줄로 적는다.
 7. 채택할 기법을 고르게 한다 (복수 선택). (질문)
 8. 계획에 `## Ambition` 섹션을 넣는다. 적용한 축마다 한 항목, 해당 없으면 `N/A — 이유`.
+9. Slice: 키운 계획을 조각으로 나눈다. 조각 하나는 사용자가 입구(CLI·API·화면)에서 보는 행동 하나이고, 입구를 직접 실행하는 검증 명령 하나를 가진다. 층별 조각이나 테스트·문서만 고치는 조각은 만들지 않는다. 사소한 작업은 조각 1개다. 계획에 `## Slice` 섹션을 넣는다.
 
-**결과물**: 계획 안의 `## Ambition` 섹션.
-**주의**: hook 은 `ambition`·`앰비션` 을 대소문자 구분 없이 부분 문자열로 찾는다. 그 단어를 언급만 해도 스킬이 로드된다. 결과 확인은 테스트·벤치마크·지표 같은 외부 판정으로만 하고, 판정자가 없으면 목표를 높이지 않는다.
+**결과물**: 계획 안의 `## Ambition` · `## Slice` 섹션.
+**주의**: hook 은 `ambition`·`앰비션` 을 대소문자 구분 없이 찾되, 앞뒤에 영문·숫자·`_` 가 붙거나(`ambitions`) 경로·확장자가 붙으면(`hooks/ambition_plan.py`·`ambition.md`) 제외한다. 한글 조사는 붙어도 된다(`ambition으로`). 그 단어를 언급만 해도 스킬이 로드된다. 결과 확인은 테스트·벤치마크·지표 같은 외부 판정으로만 하고, 판정자가 없으면 목표를 높이지 않는다.
 
 <a name="maestro"></a>
 
@@ -198,25 +199,25 @@ jstack 스킬 13개가 각각 어떻게 동작하는지 설명합니다. 호출�
 **결과물**: 없음. 마크다운 리포트만 출력하고 코드는 고치지 않는다.
 **주의**: 디렉터리는 `.py .js .jsx .ts .tsx .mjs .cjs` 만 재귀로 훑는다 (`node_modules`·`.venv`·`dist`·`build` 등 제외). 정적 검사는 라인 정규식이라 오탐이 날 수 있다.
 
-<a name="codex-side"></a>
+<a name="stress-review"></a>
 
-## `codex-side` — OpenAI Codex CLI 로 독립된 2차 의견을 받는다
+## `stress-review` — 작성자가 아닌 독립 검토자(Codex)에게 2차 의견을 받는다
 
-- **호출**: `/jstack:codex-side [review [focus] | challenge [focus] | <질문>]` — `review` 는 diff 코드 리뷰, `challenge` 는 깨뜨리기 위한 적대적 검증, 그 밖의 텍스트는 질문·계획 검토. `focus` 는 집중할 관점 (예: `challenge security`). 생략하면 고르게 한다. 자동 실행: "codex review", "2차 의견", "second opinion", "교차 검토" 같은 요청을 Claude 가 알아보면 실행
+- **호출**: `/jstack:stress-review [review [focus] | challenge [focus] | <질문>]` — `review` 는 diff 코드 리뷰, `challenge` 는 깨뜨리기 위한 적대적 검증, 그 밖의 텍스트는 질문·계획 검토. `focus` 는 집중할 관점 (예: `challenge security`). 생략하면 고르게 한다. 자동 실행: "stress review", "codex review", "2차 의견", "second opinion", "교차 검토" 같은 요청을 Claude 가 알아보면 실행
 - **언제**: 머지 전에 다른 모델의 독립 리뷰를 받거나, 설계·계획을 다른 AI 로 검증하고 싶을 때.
 
 **동작**
-1. `codex` 설치·인증, base 브랜치, 앞선 커밋 수, 미커밋 변경 수를 점검한다. 설치나 인증이 없으면 멈춘다.
+1. `codex` 설치·인증, base 브랜치, 앞선 커밋 수, 미커밋 변경 수를 점검한다.
 2. 인자가 없으면 모드를 정한다. 변경이 있으면 리뷰·적대적 검증·질문 중 고르게 하고, 없으면 질문을 받는다. (질문)
 3. 직접 넘긴 base·sha·모델·effort 는 형식을 검사한다. 통과하지 못하면 다시 묻는다. (질문)
-4. 모드·범위, OpenAI 전송, 유료 호출, 최대 약 9분 소요를 알리고 보낼지 묻는다. 취소하면 아무것도 보내지 않는다. (질문)
-5. Codex 를 읽기 전용 샌드박스에서 실행한다. 540초가 넘으면 끊는다.
-6. Codex 답을 원문 그대로 보여준다. `review` 는 게이트를 붙인다: `[P0]`·`[P1]` 이 있으면 FAIL, `P2`·`P3` 만 있으면 PASS, 태그가 없으면 UNVERIFIED.
+4. 호출마다 모드·범위, OpenAI 전송, 유료 호출, 소요 한도(기본 최대 약 9분, 긴 리뷰는 백그라운드로 최대 약 30분)를 알리고 보낼지 묻는다. 취소하면 아무것도 보내지 않는다. (질문)
+5. Codex 를 읽기 전용 샌드박스에서 실행한다. 기본 540초가 넘으면 끊는다. 긴 리뷰는 백그라운드 + 긴 한도로 돌린다.
+6. Codex 답을 원문 그대로 보여준다. `review` 는 게이트를 붙인다: `[P0]`·`[P1]` 이 있으면 FAIL, `P2`·`P3` 만 있으면 PASS, 태그가 없거나 태그 형태가 아닌 P0/P1 언급이 있으면 UNVERIFIED.
 7. Claude 가 동의·반대 지점을 짚고 `Recommendation:` 한 줄로 권고한다. 결정은 사용자가 한다.
 8. consult 후속 질문이면 앞선 Codex 대화를 이어갈지 새로 시작할지 묻는다. (질문)
 
 **결과물**: 저장소 파일은 바꾸지 않는다. 임시 디렉터리에 `last.md`·`transcript.log` 를 만들고 끝나면 지운다. 프롬프트와 저장소 내용이 OpenAI 로 간다.
-**주의**: `codex` CLI(`npm install -g @openai/codex`)와 `codex login`(또는 `CODEX_API_KEY`·`OPENAI_API_KEY`)이 필요하다. 실행 실패·타임아웃·빈 출력(생각만 있고 답이 없는 경우 포함)은 리뷰 FAIL 로 본다. `xhigh` effort 는 타임아웃에 걸리기 쉬우니 `high` 로 다시 시도한다.
+**주의**: 작성자의 결론·자기평가는 검토자에게 넘기지 않는다. Codex 를 쓸 수 없으면 — 미설치, 사용량 한도, 동의를 물을 수 없는 비대화형 실행(`claude -p`) — 그 실행만 Claude 서브에이전트가 대신 검토하고 첫 줄에 대체 사실과 이유(한도면 해제 시각)를 보인다. 서브에이전트는 답을 직접 파일에 쓰고 게이트는 그 파일을 판정한다. 설치된 `codex` 가 인증이 없거나 `--version` 에 실패하면, 또는 base 를 주지 않았는데 자동 감지한 base 이름이 형식 밖이면 사전 점검에서 중단한다. 그 밖의 실패(실행 중 인증 오류·타임아웃·빈 출력)는 리뷰 FAIL 로 본다. `codex login`(또는 `CODEX_API_KEY`·`OPENAI_API_KEY`)이 필요하다.
 
 ---
 

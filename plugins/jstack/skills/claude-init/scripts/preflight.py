@@ -4,6 +4,8 @@
 settings.json을 직접 읽어 각 항목의 설치 여부를 검사한다.
 """
 
+from __future__ import annotations  # `X | None` 주석 — SKILL.md 가 시스템 python3(3.9)로도 실행
+
 import filecmp
 import json
 import platform
@@ -12,7 +14,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from merge_settings import REQUIRED_SETTINGS  # 설정 단일 출처
+from merge_settings import LEGACY_REFRESH_INTERVAL_SEC, REQUIRED_SETTINGS  # 설정 단일 출처
 from sync_repo import SYNC_FILES, cached_versions  # Step 3 동기화 대상·캐시 버전 정렬 단일 출처
 
 CLAUDE_DIR = Path.home() / ".claude"
@@ -21,7 +23,8 @@ SETTINGS_PATH = CLAUDE_DIR / "settings.json"
 MARKETPLACE_DIR = CLAUDE_DIR / "plugins" / "marketplaces" / "jstack"
 STATUSLINE_FILE = "statusline-command.sh"
 
-# Step 2 설치 대상 단일 출처 (install_plugins.py 가 사용). ID 형식 = enabledPlugins 키 (plugin@marketplace).
+# Step 2 설치 대상 단일 출처 (install_plugins.py 가 사용).
+# ID 형식 = enabledPlugins 키 (plugin@marketplace).
 # 필수: 배포 CLAUDE.md·mcp-servers.md 가 전제하거나 팀 표준 → 항상 설치.
 CORE_PLUGINS = [
     "context-mode@context-mode",
@@ -30,7 +33,9 @@ CORE_PLUGINS = [
 ]
 # 선택: init 때 사용자가 고른다 (Step 1). 값 = 질문에 보여줄 설명.
 OPTIONAL_PLUGINS: dict[str, str] = {
-    "context7@claude-plugins-official": "라이브러리 최신 문서 조회 MCP (claude.ai Context7 커넥터가 있으면 불필요)",
+    "context7@claude-plugins-official": (
+        "라이브러리 최신 문서 조회 MCP (claude.ai Context7 커넥터가 있으면 불필요)"
+    ),
     "pyright-lsp@claude-plugins-official": "Python 타입 검사 LSP",
     "code-simplifier@claude-plugins-official": "코드 단순화 agent",
     "superpowers@claude-plugins-official": "스킬 기반 개발 워크플로 (브레인스토밍·계획·TDD·디버깅)",
@@ -72,8 +77,10 @@ def marketplaces_for(plugins: list[str]) -> list[str]:
 
 HOOK_TYPES = ["SessionStart", "UserPromptSubmit"]
 
-# Step 5 `--mcp`: init 이 설치한 플러그인이 제공하는 MCP 연결 확인 (설치 여부는 plugins 항목이 본다).
-# `claude mcp list` 는 모든 서버에 실제 연결 → 개인 MCP 하나가 30초 타임아웃이면 전체가 30초+ (실측 35초).
+# Step 5 `--mcp`: init 이 설치한 플러그인이 제공하는 MCP 연결 확인
+# (설치 여부는 plugins 항목이 본다).
+# `claude mcp list` 는 모든 서버에 실제 연결 → 개인 MCP 하나가 30초 타임아웃이면
+# 전체가 30초+ (실측 35초).
 MCP_LIST_TIMEOUT_SEC = 120
 MCP_CONNECTED = "✔ Connected"
 PLUGIN_MCP_PREFIX = "plugin:"
@@ -151,7 +158,9 @@ def stale_synced_files() -> list[str]:
 def check_settings(settings: dict) -> dict:
     """팀 필수 키(Step 4 가 덮어쓰는 키)가 같은 값인지 비교한다.
 
-    개인 선호 키(DEFAULT_SETTINGS)는 없을 때만 넣는 키라 보지 않는다 — 비워 둔 사용자가 영구 partial 이 되지 않게.
+    개인 선호 키(DEFAULT_SETTINGS)는 없을 때만 넣는 키라 보지 않는다
+    — 비워 둔 사용자가 영구 partial 이 되지 않게.
+    옛 statusLine.refreshInterval: 1 도 missing — partial 에서도 Step 4 가 지운다.
 
     Args:
         settings: settings.json 딕셔너리.
@@ -167,6 +176,13 @@ def check_settings(settings: dict) -> dict:
             missing += [f"{key}.{sub}" for sub, v in value.items() if current.get(sub) != v]
         elif current != value:
             missing.append(key)
+    # merge_settings 와 같은 조건 (우리 command, int 1 — True == 1 이라 bool 제외)
+    status_line = settings.get("statusLine")
+    status_line = status_line if isinstance(status_line, dict) else {}
+    interval = status_line.get("refreshInterval")
+    ours = status_line.get("command") == REQUIRED_SETTINGS["statusLine"]["command"]
+    if ours and interval == LEGACY_REFRESH_INTERVAL_SEC and not isinstance(interval, bool):
+        missing.append("statusLine.refreshInterval")
     return {"complete": len(missing) == 0, "missing": missing}
 
 
@@ -223,7 +239,12 @@ def _get_uid() -> int:
 def _mcp_list() -> str | None:
     """`claude mcp list` stdout. 실행 실패·타임아웃이면 None."""
     try:
-        result = subprocess.run(["claude", "mcp", "list"], capture_output=True, text=True, timeout=MCP_LIST_TIMEOUT_SEC)
+        result = subprocess.run(
+            ["claude", "mcp", "list"],
+            capture_output=True,
+            text=True,
+            timeout=MCP_LIST_TIMEOUT_SEC,
+        )
     except (subprocess.TimeoutExpired, OSError):
         traceback.print_exc()
         return None
@@ -250,12 +271,14 @@ def check_mcp_health(listing: str | None, plugins: list[str]) -> dict:
             continue
         server = line.split(": ", 1)[0].strip()
         parts = server.split(":")
-        plugin = by_name.get(parts[1]) if server.startswith(PLUGIN_MCP_PREFIX) and len(parts) == 3 else None
+        plugin_mcp = server.startswith(PLUGIN_MCP_PREFIX) and len(parts) == 3
+        plugin = by_name.get(parts[1]) if plugin_mcp else None
         if MCP_CONNECTED in line:
             if plugin:
                 report["ok"].append(server)
         elif plugin:
-            report["missing"].append({"server": server, "plugin": plugin, "hint": MCP_HINTS.get(plugin, MCP_DEFAULT_HINT)})
+            hint = MCP_HINTS.get(plugin, MCP_DEFAULT_HINT)
+            report["missing"].append({"server": server, "plugin": plugin, "hint": hint})
         else:
             report["other_failed"].append(server)
     return report
@@ -342,7 +365,9 @@ def run_preflight() -> dict:
     report["marketplaces"] = check_marketplaces(settings, marketplaces_for(plugins))
     report["plugins"] = check_plugins(settings, plugins)
     # Step 1 플러그인 선택 질문 재료. selected = 저장된 선택(없으면 전부) → 질문 기본값.
-    report["optional_plugins"] = {p: {"description": d, "selected": p in plugins} for p, d in OPTIONAL_PLUGINS.items()}
+    report["optional_plugins"] = {
+        p: {"description": d, "selected": p in plugins} for p, d in OPTIONAL_PLUGINS.items()
+    }
     stale = stale_synced_files()
     report["statusline"] = STATUSLINE_FILE not in stale
     # CLAUDE.md + @include 보조 문서

@@ -4,10 +4,13 @@
   - hook group 의 비표준 키(gstack 의 `_gstack_source` 등)를 버리고,
   - 이미 있는 marketplace 를 다시 add 하면 그 항목을 새로 써서 `autoUpdate` 를 버린다.
 그래서 (1) 빠진 항목만 실행하고 (marketplace 는 settings 항목 + 실제 clone 둘 다 있어야 설치됨 —
-settings 만 복사된 머신은 clone 이 없어 plugin install 이 "not found in marketplace" 로 실패) (2) 실행 후 버려진 키를 실행 전 값으로 되살린다.
+settings 만 복사된 머신은 clone 이 없어 plugin install 이 "not found in marketplace" 로 실패)
+(2) 실행 후 버려진 키를 실행 전 값으로 되살린다.
 
     settings 읽기(before) → missing 계산 → CLI 실행 → settings 읽기(after) → 버린 키 복구 → 쓰기
 """
+
+from __future__ import annotations  # `X | None` 주석 — SKILL.md 가 시스템 python3(3.9)로도 실행
 
 import argparse
 import json
@@ -75,7 +78,9 @@ def _run(cmd: list[str]) -> bool:
 
 def save_selection(claude_dir: Path, optional: list[str]) -> None:
     """선택 플러그인 저장 → 재 init 이 이 목록만 설치 (audit 의 uninstall 도 사용)."""
-    (claude_dir / SELECTION_FILE).write_text(json.dumps({"optional": optional}) + "\n", encoding="utf-8")
+    (claude_dir / SELECTION_FILE).write_text(
+        json.dumps({"optional": optional}) + "\n", encoding="utf-8"
+    )
 
 
 def install(settings_path: Path = SETTINGS_PATH, select: list[str] | None = None) -> int:
@@ -99,9 +104,13 @@ def install(settings_path: Path = SETTINGS_PATH, select: list[str] | None = None
             for m in needed if m in unlisted or m not in cloned]
     cmds += [["claude", "plugin", "install", p] for p in check_plugins(before, plugins)["missing"]]
     # ponytail: 선택 해제는 제거하지 않고 알리기만 — 다른 경로로 설치했을 수 있음.
-    leftover = [p for p in OPTIONAL_PLUGINS if p not in plugins and p in before.get("enabledPlugins", {})]
+    enabled = before.get("enabledPlugins", {})
+    leftover = [p for p in OPTIONAL_PLUGINS if p not in plugins and p in enabled]
     if leftover:
-        print(f"[install_plugins] 선택 안 함·설치돼 있음 (제거: claude plugin uninstall <id>): {', '.join(leftover)}")
+        print(
+            "[install_plugins] 선택 안 함·설치돼 있음 (제거: claude plugin uninstall <id>): "
+            + ", ".join(leftover)
+        )
     if not cmds:
         print("[install_plugins] 모두 설치됨, 스킵")
         return 0
@@ -111,7 +120,9 @@ def install(settings_path: Path = SETTINGS_PATH, select: list[str] | None = None
     after = _load(settings_path)
     restored = restore_dropped_keys(before, after)
     if restored:
-        settings_path.write_text(json.dumps(after, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        settings_path.write_text(
+            json.dumps(after, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         print(f"[install_plugins] CLI 가 지운 키 {len(restored)}개 복구: {', '.join(restored)}")
     print(f"[install_plugins] {len(cmds) - failures}/{len(cmds)} 완료")
     return failures
@@ -120,7 +131,9 @@ def install(settings_path: Path = SETTINGS_PATH, select: list[str] | None = None
 def main() -> None:
     """`--select a@m,b@m` (빈 값 = 선택 없음) 로 선택 저장 후 설치. 생략 시 저장된 선택."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--select", help="선택 플러그인 ID 쉼표 구분 (필수: " + ", ".join(CORE_PLUGINS) + ")")
+    parser.add_argument(
+        "--select", help="선택 플러그인 ID 쉼표 구분 (필수: " + ", ".join(CORE_PLUGINS) + ")"
+    )
     args = parser.parse_args()
     select = None if args.select is None else [p for p in args.select.split(",") if p]
     try:

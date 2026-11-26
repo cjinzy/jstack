@@ -9,7 +9,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 | Start | [`claude-init`](#claude-init) · [`onboard`](#onboard) |
 | Plan | [`interview`](#interview) · [`ambition`](#ambition) · [`maestro`](#maestro) |
 | Document | [`deepinit`](#deepinit) · [`sot-create`](#sot-create) · [`sot-verify`](#sot-verify) |
-| Review | [`cleanser`](#cleanser) · [`codex-side`](#codex-side) |
+| Review | [`cleanser`](#cleanser) · [`stress-review`](#stress-review) |
 | Finish | [`commit`](#commit) · [`mole-linear`](#mole-linear) |
 | Meta | [`manage-skills`](#manage-skills) |
 
@@ -34,7 +34,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 7. Shows what changed, backup paths and how to roll back, then runs `onboard`
 
 **Output**: Updates `~/.claude/CLAUDE.md`, its include docs, `statusline-command.sh` and `settings.json` (changed files backed up as `<name>_backup_<YYYYMMDD>.<ext>`); creates `~/.claude/.jin-claude-repo/`, `~/.claude/.venv/`, a launchd/systemd usage timer and `~/.claude/.jin-claude-plugins.json`; installs plugins
-**Notes**: Team-required keys (`statusLine`, `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) overwrite your values. `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` are set to `true` only if absent — this connects project `.mcp.json` servers without approval and skips the bypass-permissions mode warning. Deselected plugins are not uninstalled. If the timer disappears, the session-start hook re-registers it with the interval chosen at init (`~/.claude/.jin-claude-usage-interval`, 5 minutes if absent).
+**Notes**: Team-required keys (`statusLine.type`, `statusLine.command`, `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) overwrite your values, and the old `statusLine.refreshInterval: 1` is removed. `enableAllProjectMcpServers` and `skipDangerousModePermissionPrompt` are set to `true` only if absent — this connects project `.mcp.json` servers without approval and skips the bypass-permissions mode warning. Deselected plugins are not uninstalled. If the timer disappears, the session-start hook re-registers it with the interval chosen at init (`~/.claude/.jin-claude-usage-interval`, 5 minutes if absent).
 
 <a name="onboard"></a>
 
@@ -78,7 +78,7 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 
 ## `ambition` — Make a plan higher, deeper, and wider, not just bigger
 
-- **Invocation**: `/jstack:ambition [altitude|depth|range]` — apply one axis only. Omit it for all three. Auto-run: a hook loads it without asking when the prompt contains `ambition` or `앰비션`. In plan mode without that word, it asks once per conversation whether to plan in ambition mode. Claude also runs it when it recognizes requests like "altitude", "depth", "range", "깊게", "다른 분야"
+- **Invocation**: `/jstack:ambition [altitude|depth|range]` — apply one axis only. Omit it for all three. Auto-run: a hook loads it without asking when the prompt has the word `ambition` or `앰비션`. In plan mode without that word, it asks once per conversation whether to plan in ambition mode. Claude also runs it when it recognizes requests like "altitude", "depth", "range", "깊게", "다른 분야"
 - **When**: You want the plan to cover the outcome beyond the task, expert-level depth, or techniques from other fields.
 
 **How it works**
@@ -90,9 +90,10 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 6. Range: restates the deliverable as a verb (what it does), then forms 2–4 fields plus 1 red team. Lists each field's real technique or tool in one line.
 7. You pick which techniques to adopt (multi-select). (asks)
 8. Adds a `## Ambition` section to the plan: one item per applied axis, or `N/A — reason`.
+9. Slice: splits the grown plan into pieces. Each piece is one behavior the user sees at the entry point (CLI, API, screen) with one check that runs the entry point directly. No per-layer pieces, no pieces that touch only tests or docs. A trivial task stays one piece. Adds a `## Slice` section to the plan.
 
-**Output**: A `## Ambition` section in the plan.
-**Notes**: The hook matches `ambition`/`앰비션` as a case-insensitive substring. Merely mentioning the word loads the skill. Results are checked only by external judges (tests, benchmarks, metrics); without one, the goal is not raised.
+**Output**: `## Ambition` and `## Slice` sections in the plan.
+**Notes**: The hook matches `ambition`/`앰비션` case-insensitively, except when a letter, digit or `_` touches it (`ambitions`) or a path or extension does (`hooks/ambition_plan.py`, `ambition.md`). Korean particles may attach (`ambition으로`). Merely mentioning the word loads the skill. Results are checked only by external judges (tests, benchmarks, metrics); without one, the goal is not raised.
 
 <a name="maestro"></a>
 
@@ -198,25 +199,25 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 **Output**: None. Prints a Markdown report; never edits code.
 **Notes**: Directories are scanned recursively for `.py .js .jsx .ts .tsx .mjs .cjs` only (`node_modules`, `.venv`, `dist`, `build`, etc. skipped). Static checks are line regexes, so false positives happen.
 
-<a name="codex-side"></a>
+<a name="stress-review"></a>
 
-## `codex-side` — Get an independent second opinion from the OpenAI Codex CLI
+## `stress-review` — Get a second opinion from a reviewer who did not write the work (Codex)
 
-- **Invocation**: `/jstack:codex-side [review [focus] | challenge [focus] | <question>]` — `review` is a diff code review, `challenge` is an adversarial attempt to break the change, any other text is a question or plan review. `focus` narrows the angle (e.g. `challenge security`). Omit all to pick from a menu. Auto-run: when Claude recognizes requests like "codex review", "2차 의견", "second opinion", "교차 검토"
+- **Invocation**: `/jstack:stress-review [review [focus] | challenge [focus] | <question>]` — `review` is a diff code review, `challenge` is an adversarial attempt to break the change, any other text is a question or plan review. `focus` narrows the angle (e.g. `challenge security`). Omit all to pick from a menu. Auto-run: when Claude recognizes requests like "stress review", "codex review", "2차 의견", "second opinion", "교차 검토"
 - **When**: You want another model's independent review before a merge, or another AI to check a design or plan.
 
 **How it works**
-1. Checks `codex` install and auth, the base branch, commits ahead, and uncommitted changes. Stops if install or auth is missing.
+1. Checks `codex` install and auth, the base branch, commits ahead, and uncommitted changes.
 2. With no argument, picks the mode. With changes, you choose review, adversarial check, or question; without changes, it asks for your question. (asks)
 3. Validates any base, sha, model, or effort you pass. Asks again if a value fails. (asks)
-4. States the mode and scope, that the prompt and repo content go to OpenAI, the paid call, and up to ~9 minutes of runtime, then asks to send. Cancel sends nothing. (asks)
-5. Runs Codex in a read-only sandbox. Kills it after 540 seconds.
-6. Shows Codex's answer verbatim. `review` adds a gate: `[P0]`/`[P1]` present is FAIL, only `P2`/`P3` is PASS, no tags is UNVERIFIED.
+4. On every call, states the mode and scope, that the prompt and repo content go to OpenAI, the paid call, and the time limit (up to ~9 minutes by default, up to ~30 minutes for a long review run in the background), then asks to send. Cancel sends nothing. (asks)
+5. Runs Codex in a read-only sandbox. Kills it after 540 seconds by default. Long reviews run in the background with a longer limit.
+6. Shows Codex's answer verbatim. `review` adds a gate: `[P0]`/`[P1]` present is FAIL, only `P2`/`P3` is PASS; no tags, or a P0/P1 mention that is not in tag form, is UNVERIFIED.
 7. Claude notes where it agrees or disagrees and gives one `Recommendation:` line. You decide.
 8. On a consult follow-up, asks whether to resume the earlier Codex conversation or start fresh. (asks)
 
 **Output**: No repo files change. A temp dir holds `last.md` and `transcript.log`, deleted at the end. The prompt and repo content go to OpenAI.
-**Notes**: Needs the `codex` CLI (`npm install -g @openai/codex`) and `codex login` (or `CODEX_API_KEY`/`OPENAI_API_KEY`). A failed run, timeout, or empty output (including reasoning with no answer) counts as review FAIL. `xhigh` effort tends to time out; retry with `high`.
+**Notes**: The author's conclusions and self-assessment are never passed to the reviewer. When Codex cannot be used — not installed, usage limit hit, or a non-interactive run (`claude -p`) where it cannot ask for consent — a Claude subagent reviews in its place for that run, and the first line says so and why (with the reset time for a usage limit). The subagent writes its answer to a file itself and the gate judges that file. The skill stops at the pre-check if an installed `codex` has no auth or fails `--version`, or if you gave no base and the auto-detected base name fails the format check. Any other failure (auth error during the run, timeout, empty output) counts as review FAIL. Needs `codex login` (or `CODEX_API_KEY`/`OPENAI_API_KEY`).
 
 ---
 

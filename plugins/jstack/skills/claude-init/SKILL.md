@@ -17,7 +17,7 @@ description: 팀원 Claude Code 환경을 한 번에 초기화한다 — marketp
 python3 "${CLAUDE_SKILL_DIR}/scripts/preflight.py"
 ```
 
-출력: 항목별(marketplaces, plugins, statusline, claude_md, settings, venv, timer, hooks) 설치 상태 JSON + `optional_plugins`(선택 플러그인 설명·현재 선택) + `recommendation`. plugins·marketplaces 는 필수 + 저장된 선택 기준. statusline·claude_md(`CLAUDE.md`·보조 문서)는 marketplace clone 사본과 내용이 다르면 낡음 → Step 3. settings 는 Step 4 `덮어씀` 키의 값만 본다 (`없을 때만` 키는 안 봄).
+출력: 항목별(marketplaces, plugins, statusline, claude_md, settings, venv, timer, hooks) 설치 상태 JSON + `optional_plugins`(선택 플러그인 설명·현재 선택) + `recommendation`. plugins·marketplaces 는 필수 + 저장된 선택 기준. statusline·claude_md(`CLAUDE.md`·보조 문서)는 marketplace clone 사본과 내용이 다르면 낡음 → Step 3. settings 는 Step 4 `덮어씀` 키의 값과 옛 `statusLine.refreshInterval: 1` 만 본다 (`없을 때만` 키는 안 봄).
 
 - `"full"` → 모든 Step 실행
 - `"partial"` → `missing` 항목에 해당하는 Step 만 실행
@@ -28,7 +28,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/preflight.py"
 Step 2–4 는 사용자 파일을 덮어쓴다. 실행 전 아래를 알리고 **명시적 동의**를 받는다. 동의하지 않으면 Step 2–4 를 건너뛴다.
 
 - 덮어쓰는 파일: `~/.claude/CLAUDE.md`, 그것이 @include 하는 `~/.claude/*.md` 보조 문서, `~/.claude/statusline-command.sh`, `~/.claude/settings.json`
-- `settings.json`: Step 2(plugin 설치)가 `enabledPlugins`·`extraKnownMarketplaces` 를 쓰고, Step 4 가 팀 필수 키를 **덮어쓰고** 개인 선호 키는 없을 때만 넣는다. 전역 `hooks` 는 구버전 `jin-hooks/` 항목만 제거한다.
+- `settings.json`: Step 2(plugin 설치)가 `enabledPlugins`·`extraKnownMarketplaces` 를 쓰고, Step 4 가 팀 필수 키를 **덮어쓰고** 개인 선호 키는 없을 때만 넣는다. 전역 `hooks` 는 구버전 `jin-hooks/` 항목만, `statusLine` 은 옛 `refreshInterval: 1` 만 제거한다.
 - 위험: `enableAllProjectMcpServers`·`skipDangerousModePermissionPrompt` 가 없으면 `true` 로 넣는다 — 프로젝트 `.mcp.json` 서버를 승인 없이 연결하고, bypass 권한 모드 경고를 건너뛴다. 이미 `false` 면 유지한다.
 - 내용이 바뀌는 파일만 같은 폴더에 `<이름>_backup_<YYYYMMDD>.<확장자>` 로 백업한다 (예: `settings_backup_20260101.json`). 그날 백업이 이미 있으면 유지하고(첫 init 전 원본), 같은 날 재실행이 덮어쓰는 내용은 `<이름>_backup_<YYYYMMDD>_<HHMMSS>.<확장자>` 에 추가 백업한다.
 
@@ -80,13 +80,13 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/sync_repo.py" "$INTERVAL"
 python3 "${CLAUDE_SKILL_DIR}/scripts/merge_settings.py"
 ```
 
-`~/.claude/settings.json` 에 병합한다 (중첩 dict 는 해당 하위 키만). 표에 없는 키는 보존. 이미 같으면 파일을 쓰지 않는다.
+`~/.claude/settings.json` 에 병합한다 (중첩 dict 는 해당 하위 키만). 표에 없는 키는 보존 (예외: 옛 `statusLine.refreshInterval: 1` 제거). 이미 같으면 파일을 쓰지 않는다.
 - 전역 `hooks`: 구버전 `~/.claude/jin-hooks/` 항목만 제거 (현재는 plugin `hooks/hooks.json` 이 관리). 개인 hooks 는 보존.
 
 | 키 | 값 | 적용 |
 |----|----|------|
 | `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `"1"` | 덮어씀 |
-| `statusLine` | `bash ~/.claude/statusline-command.sh`, `refreshInterval: 1` | 덮어씀 |
+| `statusLine` | `type: command`, `command: bash ~/.claude/statusline-command.sh` | 덮어씀 (`type`·`command` 만. 다른 하위 키 보존, 옛 `refreshInterval: 1` 은 제거) |
 | `enableAllProjectMcpServers` | `true` | 없을 때만 |
 | `skipDangerousModePermissionPrompt` | `true` | 없을 때만 |
 | `permissions.defaultMode` | `"plan"` | 없을 때만 |
@@ -97,7 +97,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/merge_settings.py"
 
 ## Step 5 — 검증
 
-1. `preflight.py` 를 다시 실행한다. `hooks.missing` 이 비어 있어야 한다 (SessionStart `session_init.py`: 구버전 `~/.claude/skills` 사본 백업 이동 + 저장된 주기로 타이머 재등록 + marketplace 자동 업데이트 / UserPromptSubmit `ambition_plan.py`: ambition 계획 모드 안내). 남은 `missing` 항목은 사용자에게 알린다.
+1. `preflight.py` 를 다시 실행한다. `hooks.missing` 이 비어 있어야 한다 (SessionStart `session_init.py`: 구버전 `~/.claude/skills` 사본 백업 이동 + init 셸 `statusLine` 이 빠졌으면 복원 + 옛 `statusLine.refreshInterval: 1` 제거 (둘 다 settings.json 백업) + 저장된 주기로 타이머 재등록 + marketplace 자동 업데이트 / UserPromptSubmit `ambition_plan.py`: ambition 계획 모드 안내). 남은 `missing` 항목은 사용자에게 알린다.
 2. MCP 연결 확인 (`claude mcp list` 가 모든 서버에 연결해 수십 초 걸릴 수 있다):
 
    ```bash
