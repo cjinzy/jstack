@@ -4,7 +4,7 @@
 
 A Claude Code plugin with 13 skills for planning, specs, project documentation (SoT), review and commits, plus 2 hooks and a usage statusline.
 
-> Version `6.4.5` · License MIT
+> Version `7.0.0` · License MIT
 
 ## Install
 
@@ -17,7 +17,7 @@ Restart Claude Code after installing. Call a skill with `/jstack:<skill>`, or ju
 
 - Update: `claude plugin update jstack@jstack`
 - Requires: Claude Code CLI, `git`, `python3`
-- Extra per skill: `codex-side` needs the [OpenAI Codex CLI](https://github.com/openai/codex); the statusline needs `jq` and `uv`
+- Extra per skill: `stress-review` uses an external AI CLI when installed and falls back to a Claude subagent ([Codex CLI](https://github.com/openai/codex) is tested; gemini, opencode, copilot, qwen and pi follow their docs plus a read-only canary on first use); the statusline needs `jq` and `uv`
 
 ## Skills
 
@@ -28,13 +28,13 @@ How each skill works, step by step: **[docs/skills.en.md](docs/skills.en.md)**
 | Start | [`claude-init`](docs/skills.en.md#claude-init) | Set up a whole Claude Code environment (plugins, settings, statusline). [See caveats](#parts-tied-to-the-authors-setup) |
 | | [`onboard`](docs/skills.en.md#onboard) | Shows which skill to use in which situation |
 | Plan | [`interview`](docs/skills.en.md#interview) | Interviews you before building → spec file |
-| | [`ambition`](docs/skills.en.md#ambition) | Stretches a plan along three axes (Altitude, Depth, Range) |
+| | [`ambition`](docs/skills.en.md#ambition) | Stretches a plan along three axes (Altitude, Depth, Range) and slices it into runnable pieces (Slice) |
 | | [`maestro`](docs/skills.en.md#maestro) | Turns the session into an orchestrator that delegates to sub-sessions (agents or herdr panes) · manual only |
 | Document | [`deepinit`](docs/skills.en.md#deepinit) | Analyzes the project → `AGENTS.md` |
 | | [`sot-create`](docs/skills.en.md#sot-create) | Builds `sot/`, a citable, checkable project docset |
 | | [`sot-verify`](docs/skills.en.md#sot-verify) | Checks `sot/` still matches the code and fixes it · manual only |
 | Review | [`cleanser`](docs/skills.en.md#cleanser) | Reports AI code slop (debug leftovers, dead code, over-handling) |
-| | [`codex-side`](docs/skills.en.md#codex-side) | Independent second opinion from the Codex CLI (review, challenge, consult) |
+| | [`stress-review`](docs/skills.en.md#stress-review) | Second opinion from an independent reviewer — an external AI CLI or a Claude subagent (review, challenge, consult) |
 | Finish | [`commit`](docs/skills.en.md#commit) | Commits with a gitmoji + Korean message |
 | | [`mole-linear`](docs/skills.en.md#mole-linear) | Linear issue and comment rules. [See caveats](#parts-tied-to-the-authors-setup) |
 | Meta | [`manage-skills`](docs/skills.en.md#manage-skills) | Creates and updates project `verify-*` check skills · manual only |
@@ -119,4 +119,4 @@ docs/skills.en.md                 how each skill works
 
 ## License
 
-MIT. Parts of `codex-side` come from [gstack](https://github.com/garrytan/gstack) (MIT, `skills/codex-side/LICENSE-gstack`).
+MIT. Parts of `stress-review` come from [gstack](https://github.com/garrytan/gstack) (MIT, `skills/stress-review/LICENSE-gstack`).

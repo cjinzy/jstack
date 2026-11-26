@@ -22,7 +22,7 @@ description: jstack 사용 온보딩 — 상황별 워크플로(새 프로젝트
 
 ## 기능 개발
 1. 요구가 모호하면 `jin interview` — 질문으로 스펙 파일 확정.
-2. plan 모드에서 계획. 범위·깊이를 키우려면 `ambition` (Altitude·Depth·Range, `/jstack:ambition depth` 처럼 축 하나만도 가능).
+2. plan 모드에서 계획. 범위·깊이를 키우려면 `ambition` (Altitude·Depth·Range, `/jstack:ambition depth` 처럼 축 하나만도 가능). 키운 계획은 실행 조각으로 쪼갠다 (Slice).
 3. 승인 후 구현 → 테스트.
 4. `/code-review` 로 버그 리뷰, `/simplify` 로 정리 (Claude Code 내장).
 5. `jin commit`.
@@ -30,14 +30,14 @@ description: jstack 사용 온보딩 — 상황별 워크플로(새 프로젝트
 ## 버그
 1. 재현하는 실패 테스트를 먼저 쓴다. 실패를 확인한다.
 2. 원인을 고친다 (증상 말고). 테스트 통과를 확인한다.
-3. 막히면 `jin codex challenge` 로 다른 모델의 반론 (Codex CLI 필요).
+3. 막히면 `/jstack:stress-review challenge` 로 독립 검토자의 반론 (외부 AI CLI 가 없으면 Claude 서브에이전트).
 
 ## 큰 작업 (여러 영역 · 병렬 · 장기)
 - `/jstack:maestro` — 이 세션은 계획·분배·보고만, 작업은 이름 붙은 하위 세션에 위임. 후속은 같은 세션에, 끝난 세션은 보관. `maestro 종료` 로 마침.
 - 넓은 1회성 작업(전수 audit·일괄 변경·철저한 리뷰)은 프롬프트에 `ultracode` — 여러 에이전트 workflow 로 수행 (토큰 많이 씀).
 
 ## 리뷰 · 정리
-- `jin codex review` — Codex 세컨드 오피니언.
+- `/jstack:stress-review review` — 독립 검토자의 2차 의견 (`jin stress`).
 - `jin cleanser` — AI 코드 슬롭 리포트.
 - `/code-review` (깊이 `low`~`max`), 원격 다중 에이전트 리뷰는 `/code-review ultra` (유료).
 
@@ -54,12 +54,12 @@ description: jstack 사용 온보딩 — 상황별 워크플로(새 프로젝트
 |------|--------|------|
 | onboard | `jin onboard` | 이 안내 |
 | interview | `jin interview` | 인터뷰 후 스펙 작성 |
-| ambition | plan 모드 질문 / `ambition` | 계획 3축 (Altitude·Depth·Range) |
+| ambition | plan 모드 질문 / `ambition` | 계획 3축 (Altitude·Depth·Range) + 쪼개기 |
 | maestro | `/jstack:maestro` | 오케스트레이션 세션 |
 | deepinit | `jin deepinit` | AGENTS.md 생성 |
 | sot-create | `jin sot` | SoT 문서셋 |
 | sot-verify | `/jstack:sot-verify` | SoT 검증 (수동) |
-| codex-side | `jin codex` | Codex 세컨드 오피니언 |
+| stress-review | `jin stress` | 독립 검토자 2차 의견 |
 | cleanser | `jin cleanser` | AI 슬롭 리포트 |
 | commit | `jin commit` | gitmoji 커밋 |
 | mole-linear | Linear 작업 시 자동 | Linear 팀 규칙 |

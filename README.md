@@ -4,7 +4,7 @@
 
 Claude Code 플러그인입니다. 계획, 스펙, 프로젝트 문서화(SoT), 리뷰, 커밋을 돕는 스킬 13개와 hook 2개, 사용량 statusline 을 담았습니다.
 
-> 버전 `6.4.5` · 라이선스 MIT
+> 버전 `7.0.0` · 라이선스 MIT
 
 ## 설치
 
@@ -17,7 +17,7 @@ claude plugin install jstack@jstack
 
 - 업데이트: `claude plugin update jstack@jstack`
 - 필요: Claude Code CLI, `git`, `python3`
-- 스킬별 추가 요구: `codex-side` 는 [OpenAI Codex CLI](https://github.com/openai/codex), statusline 은 `jq`·`uv`
+- 스킬별 추가 요구: `stress-review` 는 외부 AI CLI 가 있으면 쓰고 없으면 Claude 서브에이전트로 돈다 ([Codex CLI](https://github.com/openai/codex) 는 실측, gemini·opencode·copilot·qwen·pi 는 문서 기준 + 첫 사용 때 읽기 전용 카나리), statusline 은 `jq`·`uv`
 
 ## 스킬
 
@@ -28,13 +28,13 @@ claude plugin install jstack@jstack
 | 시작 | [`claude-init`](docs/skills.md#claude-init) | Claude Code 환경 일괄 구성 (플러그인·설정·statusline). [아래 주의](#작성자-환경이-들어간-부분) |
 | | [`onboard`](docs/skills.md#onboard) | 상황별로 어떤 스킬을 쓰는지 안내 |
 | 계획 | [`interview`](docs/skills.md#interview) | 구현 전 인터뷰 → 스펙 파일 |
-| | [`ambition`](docs/skills.md#ambition) | 계획을 세 축(Altitude·Depth·Range)으로 확장 |
+| | [`ambition`](docs/skills.md#ambition) | 계획을 세 축(Altitude·Depth·Range)으로 확장하고 실행 조각으로 쪼개기(Slice) |
 | | [`maestro`](docs/skills.md#maestro) | 세션을 오케스트레이터로 전환, 작업은 하위 세션(agent·herdr pane)에 위임 · 직접 호출만 |
 | 문서화 | [`deepinit`](docs/skills.md#deepinit) | 프로젝트 분석 → `AGENTS.md` |
 | | [`sot-create`](docs/skills.md#sot-create) | 인용·검증 가능한 프로젝트 문서셋 `sot/` 생성 |
 | | [`sot-verify`](docs/skills.md#sot-verify) | `sot/` 가 코드와 맞는지 검증·수정 · 직접 호출만 |
 | 리뷰 | [`cleanser`](docs/skills.md#cleanser) | AI 코드 슬롭(디버그 잔재·죽은 코드·과잉 처리) 리포트 |
-| | [`codex-side`](docs/skills.md#codex-side) | Codex CLI 로 독립 2차 의견 (review·challenge·consult) |
+| | [`stress-review`](docs/skills.md#stress-review) | 독립 검토자(외부 AI CLI 또는 Claude 서브에이전트)의 2차 의견 (review·challenge·consult) |
 | 마무리 | [`commit`](docs/skills.md#commit) | gitmoji + 한국어 커밋 메시지로 커밋 |
 | | [`mole-linear`](docs/skills.md#mole-linear) | Linear 이슈·댓글 작업 규칙. [아래 주의](#작성자-환경이-들어간-부분) |
 | 메타 | [`manage-skills`](docs/skills.md#manage-skills) | 프로젝트용 `verify-*` 검증 스킬 생성·갱신 · 직접 호출만 |
@@ -119,4 +119,4 @@ docs/skills.md                    스킬별 동작 설명
 
 ## 라이선스
 
-MIT. `codex-side` 의 일부는 [gstack](https://github.com/garrytan/gstack)(MIT, `skills/codex-side/LICENSE-gstack`)에서 가져왔습니다.
+MIT. `stress-review` 의 일부는 [gstack](https://github.com/garrytan/gstack)(MIT, `skills/stress-review/LICENSE-gstack`)에서 가져왔습니다.
