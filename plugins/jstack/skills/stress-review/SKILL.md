@@ -29,8 +29,8 @@ allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion, Agent
 | 검토자 | 읽는 범위 | 근거 |
 |--------|-----------|------|
 | `codex` | 저장소 루트 전체, read-only 샌드박스 | 실측 |
-| `gemini` · `opencode` · `copilot` · `qwen` · `pi` | 프롬프트 본문만 넘긴다 — 빈 임시 폴더에서 돈다 (cwd·`PWD`). OS 샌드박스는 아니라서 CLI 가 절대경로를 읽는 것까지 막지는 못한다 | 문서 기준, 실측 없음 → 카나리 |
-| `claude` (서브에이전트) | 저장소 (읽기 전용 유형 `Explore` — Edit/Write 는 없지만 Bash 는 있어 읽기 전용은 지시 수준이다) | 외부 전송 없음 |
+| `gemini` · `opencode` · `copilot` · `qwen` · `pi` | 프롬프트 본문만 넘긴다 — 빈 임시 폴더에서 돈다 (cwd·`PWD`). OS 샌드박스는 아니라서 CLI 가 절대경로를 읽는 것까지 막지는 못한다 | 문서 기준, 실측 없음 → 카나리 (파일 편집·셸 모두로 쓰기를 시도시킨다). opencode 2.x 는 읽기 전용 설정이 실제로 먹는지 실측하지 못했다 — 카나리가 유일한 방어다 |
+| `claude` (서브에이전트) | 저장소. 읽기 전용은 지시 수준이다 (답 파일을 쓰려면 Write 도구가 필요해 `general-purpose` 유형) — 검토 뒤 작업 트리가 그대로인지 확인한다 | 외부 전송 없음 |
 
 읽기 전용 플래그와 금지 플래그(`--dangerously-*`, `--yolo`, 에이전트별 목록)는 스크립트가 붙이고 막는다. 명령을 손으로 조립하지 않는다 — 그러면 그 보호가 빠진다.
 
@@ -180,29 +180,30 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/reviewer_config.py" set "<이름>"
 
 Agent 도구가 없으면 (이 스킬이 서브에이전트 안에서 돌 때) 중단한다 — `검토자: 부재 — 검토되지 않음` 으로 보고하고 "메인 세션에서 다시 실행하거나 `agent` 로 외부 CLI 를 고르라"고 안내한다. Claude 가 직접 리뷰해 대신하지 않는다.
 
-답은 서브에이전트가 **직접** 파일에 쓴다. Claude 는 `last.md` 를 쓰지도 고치지도 않는다 — 옮겨 적다 지적을 빠뜨리면 게이트가 거짓 PASS 가 되기 때문이다.
+답은 서브에이전트가 **Write 도구로 직접** 파일에 쓴다. Claude 는 `last.md` 를 쓰지도 고치지도 않는다 — 옮겨 적다 지적을 빠뜨리면 게이트가 거짓 PASS 가 된다. 답을 셸(heredoc·리다이렉트)로 넘기지도 않는다 — 답은 diff 를 인용하므로 구분자 줄이 섞이면 그 뒤가 명령으로 실행된다.
 
-1. 임시 폴더를 만든다.
+1. 임시 폴더를 만들고 작업 트리 상태를 기록한다.
 
 ```bash
-D=$(mktemp -d) && echo "D=$D"
+D=$(mktemp -d) && git status --porcelain > "$D/before.txt" 2>/dev/null; echo "D=$D"
 ```
 
-2. Agent 도구를 `subagent_type: "Explore"` (읽기 전용 유형) 로 띄운다. 프롬프트는 모드 파일의 것을 쓰고, 위 "넘기는 것" 규칙을 그대로 지킨다 — 이 대화의 맥락을 요약해 넣고 싶어지는 자리가 여기다. 결론은 넣지 않는다. 프롬프트 끝에 아래 저장 지시를 그대로 붙인다 (`<D>`·`<SKILL_DIR>` 은 절대경로로, `<임의 4자>` 는 실행마다 새로):
+2. Agent 도구를 `subagent_type: "general-purpose"` 로 띄운다 (Write 도구가 있어야 답을 파일로 낼 수 있다 — `Explore` 는 파일을 만들지 못한다). 프롬프트는 모드 파일의 것을 쓰고, 위 "넘기는 것" 규칙을 그대로 지킨다 — 이 대화의 맥락을 요약해 넣고 싶어지는 자리가 여기다. 결론은 넣지 않는다. 프롬프트 끝에 아래 지시를 그대로 붙인다 (`<D>` 는 절대경로로):
 
 ```
-When your answer is complete, save it yourself. Do not send the answer back as your reply.
-Run this exactly once (the file cannot be overwritten), with your full answer between the delimiter lines:
-
-python3 "<SKILL_DIR>/scripts/agent_run.py" --save-answer "<D>/last.md" <<'JIN_ANSWER_END_<임의 4자>'
-<your full answer, exactly as it should be read>
-JIN_ANSWER_END_<임의 4자>
-
-Reply with only the STATUS and GATE lines the command printed.
+You are a read-only reviewer. Do not modify, create or delete anything in the repository, and do not run commands that change state.
+The one file you may create is your answer: when it is complete, write it with the Write tool to exactly this path:
+<D>/last.md
+Write the full answer there once. Do not pass the answer through a shell command. Reply with only: saved.
 ```
 
-3. `<D>/last.md` 를 Read 로 읽어 답으로 쓴다. 파일이 없으면 서브에이전트 실패다 → `검토자: 부재 — 검토되지 않음` (서브에이전트의 회신 글을 답으로 대신 쓰지 않는다).
-4. review 모드면 같은 P0/P1 게이트를 스크립트로 판정한다. 게이트 줄은 이 출력만 쓴다 — Claude 가 답을 읽고 직접 판정하지 않고, 서브에이전트가 회신한 GATE 줄도 쓰지 않는다.
+3. `<D>/last.md` 를 Read 로 읽어 답으로 쓴다. 파일이 없으면 서브에이전트 실패다 → `검토자: 부재 — 검토되지 않음` (서브에이전트의 회신 글을 답으로 대신 쓰지 않는다). 그리고 작업 트리가 그대로인지 본다 — 달라졌으면 결과 첫머리에 "검토자가 작업 트리를 바꿨다" 와 바뀐 경로를 적는다 (읽기 전용은 지시 수준이라 여기서 확인한다).
+
+```bash
+git status --porcelain | diff "<D 절대경로>/before.txt" - && echo "TREE: unchanged"
+```
+
+4. review 모드면 같은 P0/P1 게이트를 스크립트로 판정한다. 게이트 줄은 이 출력만 쓴다 — Claude 가 답을 읽고 직접 판정하지 않고, 서브에이전트의 회신 글도 쓰지 않는다.
 
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/scripts/agent_run.py" --gate-text "<D 절대경로>/last.md"

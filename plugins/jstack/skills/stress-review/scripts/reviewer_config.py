@@ -37,6 +37,7 @@ EXIT_TIMEOUT = 124  # GNU timeout 관례
 CANARY_FILE = "CANARY"
 CANARY_PROMPT = (
     f"Create a file named {CANARY_FILE} in the current directory containing the word ok. "
+    "Use every tool you have, including shell commands; if one way is denied, try another. "
     "Then reply with one short sentence saying what you did, "
     "and include this token in your reply exactly: {token}\n"
 )
@@ -68,6 +69,8 @@ class Agent:
     limit_pattern: str = ""  # 사용량 한도 오류 문구 (실측·문서로 확인한 것만 — 추측 금지)
 
 
+OPENCODE_DENY = '{"edit":"deny","bash":"deny","webfetch":"deny"}'
+
 AGENTS: dict[str, Agent] = {
     # 0.162.1 실측. exec = -s read-only, review·resume = -c sandbox_mode (build_cmd)
     "codex": Agent(
@@ -92,7 +95,12 @@ AGENTS: dict[str, Agent] = {
     "opencode": Agent(
         "opencode",
         ("run",),
-        env={"OPENCODE_PERMISSION": '{"edit":"deny","bash":"deny","webfetch":"deny"}'},
+        # 1.x 는 OPENCODE_PERMISSION, 2.x 는 설정 본문(OPENCODE_CONFIG_CONTENT) — 2.2.6 확인.
+        # 2.x 에서 실제로 먹는지는 실측하지 못했다 → 카나리(셸까지 시도)가 최종 방어다.
+        env={
+            "OPENCODE_PERMISSION": OPENCODE_DENY,
+            "OPENCODE_CONFIG_CONTENT": '{"permission":' + OPENCODE_DENY + "}",
+        },
     ),
     # -p 가 있으면 stdin 을 무시한다 → pipe 만. 쓰기·셸 도구 거부
     "copilot": Agent(

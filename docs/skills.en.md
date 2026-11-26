@@ -211,12 +211,12 @@ What each of the 13 jstack skills does, step by step. Call them with `/jstack:<s
 2. Picks the reviewer. Asks on first run, when the saved CLI is gone, or when its version changed. Options are the installed CLIs and a Claude subagent. Any CLI other than codex must pass a canary (asked to write a file in an empty folder) before it is saved. (asks)
 3. With no argument, picks the mode. (asks)
 4. For an external CLI, states on every call the mode and scope, what is sent, the paid call, and up to ~9 minutes of runtime, then asks to send. Cancel sends nothing. (asks)
-5. Runs the reviewer read-only. codex runs in a sandbox that can read the repo; other CLIs run in an empty temp folder and get only the diff or question (not an OS sandbox). The Claude subagent uses a read-only agent type. Killed after 540 seconds.
+5. Runs the reviewer read-only. codex runs in a sandbox that can read the repo; other CLIs run in an empty temp folder and get only the diff or question (not an OS sandbox). The Claude subagent is told to stay read-only, and the working tree is checked afterwards. Killed after 540 seconds.
 6. Shows the answer verbatim. `review` adds a gate: `[P0]`/`[P1]` present is FAIL, only `P2`/`P3` is PASS; no tags, or a P0/P1 mention that is not in tag form, is UNVERIFIED.
 7. Claude notes where it agrees or disagrees and gives one `Recommendation:` line. You decide.
 
 **Output**: No repo files change. The reviewer choice is saved in `~/.claude/.jstack-stress-review`. The first line shows `검토자: <name>`.
-**Notes**: The author's conclusions and self-assessment are never passed to the reviewer. In a non-interactive run (`claude -p`), where it cannot ask, it calls no external CLI and reviews with a Claude subagent. Where the Agent tool is unavailable it does not review and tells you to run it from the main session. The Claude subagent saves its own answer to a file, and the gate judges that file. A failed run, timeout, or empty output counts as review FAIL. Exception: when the external CLI hits its usage limit (confirmed for codex only), a Claude subagent reviews in its place for that run, and the first line says so along with the reset time. Only codex is tested; the other CLIs follow their docs.
+**Notes**: The author's conclusions and self-assessment are never passed to the reviewer. In a non-interactive run (`claude -p`), where it cannot ask, it calls no external CLI and reviews with a Claude subagent. Where the Agent tool is unavailable it does not review and tells you to run it from the main session. The Claude subagent writes its own answer to a file with the Write tool, and the gate judges that file. A failed run, timeout, or empty output counts as review FAIL. Exception: when the external CLI hits its usage limit (confirmed for codex only), a Claude subagent reviews in its place for that run, and the first line says so along with the reset time. Only codex is tested; the other CLIs follow their docs.
 
 ---
 

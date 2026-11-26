@@ -3,7 +3,6 @@
     --agent <이름>      reviewer_config.AGENTS 로 읽기 전용 명령을 만들어 실행한다.
                         codex = 저장소 루트(read-only), 나머지 = 빈 임시 폴더 (저장소 못 읽음)
     --gate-text <파일>  실행 없이 파일 본문에 리뷰 게이트만 적용 (Claude 서브에이전트 답 판정)
-    --save-answer <파일>  stdin 을 파일에 그대로 쓰고 게이트 적용 (서브에이전트가 직접 저장)
     -- <명령>           명령을 그대로 실행 (테스트용)
 
 공통 동작:
@@ -191,22 +190,6 @@ def gate_text(path: Path) -> int:
     return 0
 
 
-def save_answer(path: Path) -> int:
-    """stdin 을 그대로 파일에 쓰고 게이트를 적용한다 — 답을 쓴 서브에이전트가 직접 부른다.
-
-    메인 모델이 답을 옮겨 적다 지적을 빠뜨리면 게이트가 거짓 PASS 가 된다. 그 단계를 없앤다.
-    이미 있는 파일은 덮어쓰지 않는다 (저장된 답을 나중에 고쳐 쓰는 길 차단).
-    """
-    data = sys.stdin.buffer.read()
-    try:
-        with path.open("xb") as handle:
-            handle.write(data)
-    except FileExistsError:
-        print(f"STATUS: failed\nERROR: 이미 저장된 답이 있다 — {path}")
-        return EXIT_USAGE
-    return gate_text(path)
-
-
 def output_file(cmd: list[str]) -> Path | None:
     """명령 인자에서 -o/--output-last-message 경로를 찾는다."""
     for i, arg in enumerate(cmd[:-1]):
@@ -232,12 +215,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--model")
     parser.add_argument("--effort")
     parser.add_argument("--gate-text", type=Path, help="이 파일 본문에 게이트만 적용")
-    parser.add_argument("--save-answer", type=Path, help="stdin 을 이 파일에 그대로 쓰고 게이트")
     parser.add_argument("cmd", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
 
-    if args.save_answer:
-        return save_answer(args.save_answer)
     if args.gate_text:
         return gate_text(args.gate_text)
 
