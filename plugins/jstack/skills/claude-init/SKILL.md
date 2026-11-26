@@ -97,7 +97,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/merge_settings.py"
 
 ## Step 5 — 검증
 
-1. `preflight.py` 를 다시 실행한다. `hooks.missing` 이 비어 있어야 한다 (SessionStart `session_init.py`: 구버전 `~/.claude/skills` 사본 백업 이동 + 저장된 주기로 타이머 재등록 + marketplace 자동 업데이트 / UserPromptSubmit `ambition_plan.py`: ambition 계획 모드 안내). 남은 `missing` 항목은 사용자에게 알린다.
+1. `preflight.py` 를 다시 실행한다. `hooks.missing` 이 비어 있어야 한다 (SessionStart `session_init.py`: 구버전 `~/.claude/skills` 사본 백업 이동 + init 셸 `statusLine` 이 빠졌으면 복원 + 옛 `statusLine.refreshInterval: 1` 제거 (둘 다 settings.json 백업) + 저장된 주기로 타이머 재등록 + marketplace 자동 업데이트 / UserPromptSubmit `ambition_plan.py`: ambition 계획 모드 안내). 남은 `missing` 항목은 사용자에게 알린다.
 2. MCP 연결 확인 (`claude mcp list` 가 모든 서버에 연결해 수십 초 걸릴 수 있다):
 
    ```bash

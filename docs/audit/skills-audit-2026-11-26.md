@@ -67,4 +67,5 @@
   - ambition hook: 경로·파일명(`ambition_plan.py`, `skills/ambition/`, `ambition.md`)엔 로드 안 함. 산문 속 단어는 여전히 로드.
   - session_init stderr: `restore statusLine: done; backup …` / `warning: remove statusLine.refreshInterval failed: …` + traceback.
 - **검증**: `pytest plugins/jstack` 364 · `tests/`(skills 제외) 72 · `test_statusline.sh` 22 통과 (HOME 임시). 손댄 .py 9개 ruff 전 규칙 통과. 3.9.6(`/usr/bin/python3`): hooks 2·codex_run·claude-init 6 import, claude-init·stress-review 테스트 282 통과. `claude plugin validate .` 통과, 버전 7.0.0 불변. headless: S4·S6 1회 PASS. S5 는 1회 FAIL → 5회 재측정 2/5 (이전 문구 41/41) — 회귀. 실패 3회 모두 첫 줄 `검토자: claude` 라벨을 산문으로 풀어 씀. 수정: 스냅샷 명령을 step 1·3 인라인으로 되돌려 대체 절을 줄이고, step 5 세 대안을 모두 `검토자: claude (…)` 로 적어 "글자 그대로" 쓰게 함 (기존엔 2·3번째가 괄호만) → S5 5/5. 합계 $6.57.
-- **남은 것**: S6 는 첫 줄 수정 뒤 재측정 안 함. 새 한도 문구 2개는 실측 아님 (RETRY_AT 없으면 첫 줄에서 생략).
+- **후속**: claude-init Step 5 session_init 설명에 statusLine 복원·옛 `refreshInterval: 1` 제거 반영. S6 a145c66 뒤 1회 PASS ($0.55).
+- **남은 것**: 새 한도 문구 2개는 실측 아님 (RETRY_AT 없으면 첫 줄에서 생략).
