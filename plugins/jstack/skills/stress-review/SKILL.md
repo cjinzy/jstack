@@ -105,13 +105,7 @@ JIN_ARG_END
 
 답은 서브에이전트가 Write 도구로 직접 파일에 쓴다. Claude 는 `last.md` 를 쓰지도 고치지도 않고 (옮겨 적다 지적이 빠지면 게이트가 거짓 PASS), 답을 셸로 넘기지도 않는다 (구분자 줄 뒤가 명령으로 실행된다).
 
-작업 트리 스냅샷 — step 1·3 이 `<파일>` 만 바꿔 같은 명령을 쓴다. gitignore 된 파일·저장소 밖·untracked 파일의 내용 변경은 못 잡는다.
-
-```bash
-{ git status --porcelain -uall; git diff HEAD | git hash-object --stdin; } > "<파일>" 2>/dev/null
-```
-
-1. `D=$(mktemp -d) && echo "D=$D"` 에 이어 같은 Bash 호출에서 스냅샷 (`<파일>` = `$D/before.txt`).
+1. `D=$(mktemp -d) && { git status --porcelain -uall; git diff HEAD | git hash-object --stdin; } > "$D/before.txt" 2>/dev/null; echo "D=$D"`
 2. Agent 도구, `subagent_type: "general-purpose"`. 프롬프트 = 모드 파일 heredoc 의 지시문 (review 는 focus 가 없어도 review.md B 의 지시문 — `Custom focus` 절만 뺀다. 범위 줄은 고른 범위대로) + 요구사항 + 아래 끝 문단. Agent 도구가 없으면 대신 돌 수 없다 → `검토되지 않음` 으로 보고하고 중단. Claude 가 직접 리뷰해 대신하지 않는다.
 
 ```
@@ -121,9 +115,9 @@ The one file you may create is your answer: when it is complete, write it with t
 Do not pass the answer through a shell command. Reply with only: saved.
 ```
 
-3. `<D>/last.md` 를 Read 로 읽어 답으로 쓴다 (없으면 `검토되지 않음`). 스냅샷 (`<파일>` = `<D>/after.txt`) 후 `diff "<D>/before.txt" "<D>/after.txt"` 가 다르면 "검토자가 작업 트리를 바꿨다" 와 그 diff 를 첫머리에 적는다.
+3. `<D>/last.md` 를 Read 로 읽어 답으로 쓴다 (없으면 `검토되지 않음`). `{ git status --porcelain -uall; git diff HEAD | git hash-object --stdin; } 2>/dev/null | diff "<D>/before.txt" -` 가 다르면 "검토자가 작업 트리를 바꿨다" 와 바뀐 경로를 첫머리에 적는다 (gitignore 파일·저장소 밖·untracked 파일 내용 변경은 못 잡는다).
 4. review 모드 게이트: `python3 "${CLAUDE_SKILL_DIR}/scripts/codex_run.py" --gate-text "<D>/last.md"` 의 `GATE:` 줄만 쓴다.
-5. 첫 줄에 대체 사실과 이유를 적는다: `검토자: claude (codex 사용량 한도 — 대체) · 한도 해제: <RETRY_AT>` / `(codex 미설치 — 대체)` / `(동의를 물을 수 없음 — 대체)`. 헤더는 `CLAUDE SAYS (<mode>)`.
+5. 첫 줄은 아래 중 하나를 글자 그대로 쓴다 (풀어 쓰지 않는다): `검토자: claude (codex 사용량 한도 — 대체) · 한도 해제: <RETRY_AT>` (RETRY_AT 없으면 ` · 한도 해제` 부분 생략) / `검토자: claude (codex 미설치 — 대체)` / `검토자: claude (동의를 물을 수 없음 — 대체)`. 헤더는 `CLAUDE SAYS (<mode>)`.
 
 ### 파일시스템 경계
 
